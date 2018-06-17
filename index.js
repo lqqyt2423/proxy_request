@@ -61,7 +61,7 @@ server.on('connect', (req, socket) => {
 });
 
 // 开启server 监听指定端口
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
   // 打印当前ip 地址和port
   console.log(`address: ${ip.address()}:${port}`);
 });
