@@ -32,17 +32,11 @@ server.on('request', (req, res) => {
     return;
   }
 
-  // console.log('method', method);
-  // console.log('headers', headers);
-  // console.log('path', path);
-  // console.log('status', res.statusCode);
-  // console.log('url', url.parse(path));
-
-  const {
-    protocol = 'http:',
-    hostname,
-    port = 80,
-  } = url.parse(path);
+  const urlObj = url.parse(path);
+  const protocol = urlObj.protocol || 'http:';
+  const hostname = urlObj.hostname;
+  const defaultPort = protocol === 'http:' ? 80 : 443;
+  const port = urlObj.port || defaultPort;
 
   // 重写headers的host属性
   headers.host = hostname;
@@ -54,13 +48,11 @@ server.on('request', (req, res) => {
     hostname,
     port,
     method,
+    path: urlObj.path,
     headers,
   }, (proxyRes) => {
     const statusCode = proxyRes.statusCode;
     const headers = proxyRes.headers;
-
-    // console.log('statusCode', statusCode);
-    // console.log('headers', headers);
 
     res.writeHead(statusCode, headers);
 
@@ -94,13 +86,12 @@ server.on('request', (req, res) => {
 // ssl隧道
 server.on('connect', (req, socket, head) => {
   const path = req.url;
-  // console.log('path', path);
 
   const { port, hostname } = url.parse('http://' + path);
 
   const proxyClient = net.createConnection(port, hostname, () => {
     // 代理客户端socket连接建立后
-    console.log('ssl proxyClient connect', path);
+    console.log('SSL proxyClient connect', path);
 
     socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
 
