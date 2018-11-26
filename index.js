@@ -99,7 +99,10 @@ server.on('connect', (req, socket, head) => {
 
   const { port, hostname } = url.parse('http://' + path);
 
-  const proxyClient = net.createConnection(port, hostname, () => {
+  const proxyClient = net.createConnection(port, hostname);
+  proxyClient.setTimeout(10000);
+
+  proxyClient.on('connect', () => {
     // 代理客户端socket连接建立后
     console.log('SSL proxyClient connect', path);
 
@@ -110,6 +113,22 @@ server.on('connect', (req, socket, head) => {
     proxyClient.pipe(socket);
     socket.pipe(proxyClient);
   });
+
+  proxyClient.on('timeout', () => {
+    // console.log('proxyClient timeout', path);
+    // 需要用 destroy，因为有可能还未触发 connect 事件
+    proxyClient.destroy();
+    socket.end();
+  });
+
+  proxyClient.on('error', err => {
+    console.log('proxyClient Error', path, err.message);
+    socket.end();
+  });
+
+  // proxyClient.on('close', hadErr => {
+  //   console.log('proxyClient close', path, 'hadError:', hadErr);
+  // });
 });
 
 server.listen(8888);
