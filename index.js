@@ -50,6 +50,8 @@ server.on('request', (req, res) => {
     method,
     path: urlObj.path,
     headers,
+    // 10s的请求时间
+    timeout: 10000,
   }, (proxyRes) => {
     const statusCode = proxyRes.statusCode;
     const headers = proxyRes.headers;
@@ -64,12 +66,20 @@ server.on('request', (req, res) => {
       body = Buffer.concat(body);
       end(body);
     });
+    proxyRes.on('error', (e) => {
+      if (!res.finished) {
+        end(`proxyRes error\n${e.message}\n`);
+      }
+    });
   });
 
-  // timeout 10s handler
-  proxyClient.setTimeout(10000, () => {
-    res.statusCode = 500;
-    end('500 timeout\n');
+  // timeout handler
+  proxyClient.on('timeout', () => {
+    // 主动终止连接
+    // 如果此时还未连接成功，会触发 error 事件
+    // error with an error with message Error: socket hang up and code ECONNRESET
+    // 如果已经连接成功，则还是会触发 proxyRes 的 end 事件
+    proxyClient.abort();
   });
 
   // error handler
