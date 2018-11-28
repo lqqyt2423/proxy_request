@@ -21,11 +21,11 @@ server.on('connect', (req, socket, head) => {
   // man in the middle
   const proxyClient = net.createConnection(8889, 'localhost');
 
-  proxyClient.setTimeout(10000);
+  proxyClient.setTimeout(20000);
 
   proxyClient.on('connect', () => {
     // 代理客户端socket连接建立后
-    console.log('SSL proxyClient connect', path);
+    // console.log('SSL proxyClient connect', path);
 
     socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
 
@@ -52,7 +52,7 @@ server.on('connect', (req, socket, head) => {
   });
 
   proxyClient.on('error', err => {
-    console.log('proxyClient Error', path, err.message);
+    console.log('SSL CONNECT Error:', path, err.message);
     socket.end();
   });
 
