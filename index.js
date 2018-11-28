@@ -5,18 +5,26 @@ const net = require('net');
 const requestHandler = require('./requestHandler');
 const mitmServer = require('./mitm-server');
 
+// const url = require('url');
+// const fakeServer = require('./fake-server');
+
 const server = http.createServer();
 
 // http 代理
 server.on('request', requestHandler);
 
 // ssl隧道
-server.on('connect', (req, socket, head) => {
+server.on('connect', async (req, socket, head) => {
   const path = req.url;
 
   // 直接连接服务器
   // const { port, hostname } = url.parse('http://' + path);
   // const proxyClient = net.createConnection(port, hostname);
+
+  // simple test, not recommend
+  // let { port, hostname } = url.parse('http://' + path);
+  // port = await fakeServer(hostname);
+  // const proxyClient = net.createConnection(port, 'localhost');
 
   // man in the middle
   const proxyClient = net.createConnection(8889, 'localhost');
