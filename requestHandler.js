@@ -3,6 +3,7 @@
 const http = require('http');
 const https = require('https');
 const url = require('url');
+// const zlib = require('zlib');
 
 const rp = {
   http,
@@ -20,11 +21,17 @@ function requestHandler(req, res) {
   const protocol = (!!req.connection.encrypted && !(/^http:/).test(req.url)) ? 'https:' : 'http:';
   // const path = req.url;
   const path = protocol === 'http:' ? req.url : ('https://' + host + req.url);
-  console.log('Proxy Path:', path);
 
   // logger then res.end
   const end = (body = '') => {
     console.log(`${method} ${path} ${res.statusCode} ${Date.now() - startTime} ms - ${Buffer.byteLength(body)}`);
+
+    // gunzip => bufferToString
+    // TODO: 支持压缩
+    // if (path === 'https://www.v2ex.com/?tab=hot') {
+    //   console.log(String(zlib.gunzipSync(body)));
+    // }
+
     res.end(body);
   };
 
@@ -37,6 +44,9 @@ function requestHandler(req, res) {
   }
 
   const urlObj = url.parse(path);
+  // hostname 与 host 是有区别的
+  // host === hostname:port
+  const hostname = urlObj.hostname;
   const defaultPort = protocol === 'http:' ? 80 : 443;
   const port = urlObj.port || defaultPort;
 
@@ -47,13 +57,13 @@ function requestHandler(req, res) {
   // also support https
   const proxyClient = rp[protocol.slice(0, -1)].request({
     protocol,
-    hostname: host,
+    hostname,
     port,
     method,
     path: urlObj.path,
     headers,
-    // 10s的请求时间
-    timeout: 10000,
+    // 20s的请求时间
+    timeout: 20000,
   }, (proxyRes) => {
     const statusCode = proxyRes.statusCode;
     const headers = proxyRes.headers;
@@ -87,6 +97,7 @@ function requestHandler(req, res) {
   // error handler
   proxyClient.on('error', (e) => {
     res.statusCode = 500;
+    // console.log(e);
     end(`500 error\n${e.message}\n`);
   });
 

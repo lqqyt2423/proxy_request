@@ -1,19 +1,18 @@
 'use strict';
 
-const fs = require('fs');
 const https = require('https');
 const tls = require('tls');
-const path = require('path');
 const requestHandler = require('./requestHandler');
-const { getPath } = require('./utils');
 const crtMgr = require('./crtMgr');
-// const constants = require('constants');
 
-const certPath = getPath('certificates');
+// const fs = require('fs');
+// const path = require('path');
+// const constants = require('constants');
+// const { getPath } = require('./utils');
+// const certPath = getPath('certificates');
 
 async function SNIPrepareCert(servername, cb) {
-  console.log('SNIPrepareCert servername:', servername);
-
+  // console.log('SNIPrepareCert servername:', servername);
   try {
     const { key, crt } = await new Promise((resolve, reject) => {
       crtMgr.getCertificate(servername, (err, key, crt) => {
@@ -29,14 +28,15 @@ async function SNIPrepareCert(servername, cb) {
   }
 }
 
-// host: anyproxy_internal_https_server
+// man in the middle server
 const server = https.createServer({
   // secureOptions: constants.SSL_OP_NO_SSLv3 || constants.SSL_OP_NO_TLSv1,
 
+  // 经过测试，此 https server 无需 key 和 cert 也可以，SNI 才是关键
   // 假设已经存在了 localhost.key 和 localhost.crt
   // 所以需先运行 crtMgr.getCertificate('localhost') 来生成证书
-  key: fs.readFileSync(path.join(certPath, 'localhost.key')),
-  cert: fs.readFileSync(path.join(certPath, 'localhost.crt')),
+  // key: fs.readFileSync(path.join(certPath, 'localhost.key')),
+  // cert: fs.readFileSync(path.join(certPath, 'localhost.crt')),
 
   // A function that will be called if the client supports SNI TLS extension
   // 服务器名称指示（server name indication, SNI）
