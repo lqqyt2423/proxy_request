@@ -7,6 +7,109 @@
 
 const path = require('path');
 const mkdirp = require('mkdirp');
+const forge = require('node-forge');
+const pki = forge.pki;
+const { promisify } = require('util');
+const fs = require('fs');
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
+
+const CAattrs = [{
+  name: 'commonName',
+  value: 'Proxy Request CA'
+}, {
+  name: 'countryName',
+  value: 'Internet'
+}, {
+  shortName: 'ST',
+  value: 'Internet'
+}, {
+  name: 'localityName',
+  value: 'Internet'
+}, {
+  name: 'organizationName',
+  value: 'Proxy Request CA'
+}, {
+  shortName: 'OU',
+  value: 'CA'
+}];
+
+const CAextensions = [{
+  name: 'basicConstraints',
+  cA: true
+}, {
+  name: 'keyUsage',
+  keyCertSign: true,
+  digitalSignature: true,
+  nonRepudiation: true,
+  keyEncipherment: true,
+  dataEncipherment: true
+}, {
+  name: 'extKeyUsage',
+  serverAuth: true,
+  clientAuth: true,
+  codeSigning: true,
+  emailProtection: true,
+  timeStamping: true
+}, {
+  name: 'nsCertType',
+  client: true,
+  server: true,
+  email: true,
+  objsign: true,
+  sslCA: true,
+  emailCA: true,
+  objCA: true
+}, {
+  name: 'subjectKeyIdentifier'
+}];
+
+const ServerAttrs = [{
+  name: 'countryName',
+  value: 'Internet'
+}, {
+  shortName: 'ST',
+  value: 'Internet'
+}, {
+  name: 'localityName',
+  value: 'Internet'
+}, {
+  name: 'organizationName',
+  value: 'Proxy Request CA'
+}, {
+  shortName: 'OU',
+  value: 'Proxy Request Server Certificate'
+}];
+
+const ServerExtensions = [{
+  name: 'basicConstraints',
+  cA: false
+}, {
+  name: 'keyUsage',
+  keyCertSign: false,
+  digitalSignature: true,
+  nonRepudiation: false,
+  keyEncipherment: true,
+  dataEncipherment: true
+}, {
+  name: 'extKeyUsage',
+  serverAuth: true,
+  clientAuth: true,
+  codeSigning: false,
+  emailProtection: false,
+  timeStamping: false
+}, {
+  name: 'nsCertType',
+  client: true,
+  server: true,
+  email: false,
+  objsign: false,
+  sslCA: false,
+  emailCA: false,
+  objCA: false
+}, {
+  name: 'subjectKeyIdentifier'
+}];
 
 class CA {
 
@@ -17,7 +120,7 @@ class CA {
     mkdirp.sync(folder);
 
     this.folder = folder;
-    this.rootCAName = 'root';
+    this.rootCAFileName = 'root';
   }
 
   randomSerialNumber() {
@@ -29,11 +132,110 @@ class CA {
     return sn;
   }
 
+  async generateKeyPair() {
+    return await new Promise((resolve, reject) => {
+      pki.rsa.generateKeyPair(2048, (err, keys) => {
+        if (err) return reject(err);
+        resolve(keys);
+      });
+    });
+  }
+
   // 生成根证书，自签名
-  generateRoot() {}
+  // 生成的证书需要系统信任
+  async generateRoot() {
+    const keys = await this.generateKeyPair();
+    const cert = pki.createCertificate();
+    cert.publicKey = keys.publicKey;
+    cert.serialNumber = this.randomSerialNumber();
+    const now = new Date();
+    cert.validity.notBefore = new Date(now - 1000 * 60 * 60 * 24);
+    cert.validity.notAfter = new Date(now + 1000 * 60 * 60 * 24 * 365 * 10);
+    cert.setSubject(CAattrs);
+    cert.setIssuer(CAattrs);
+    cert.setExtensions(CAextensions);
+    cert.sign(keys.privateKey, forge.md.sha256.create());
+
+    return {
+      ca: cert,
+      publicKey: pki.publicKeyToPem(keys.publicKey),
+      privateKey: pki.privateKeyToPem(keys.privateKey),
+    };
+  }
+
+  // 获取根证书
+  async getRoot() {
+    if (this.rootCA) {
+      return {
+        ca: this.rootCA,
+        publicKey: this.rootPublicKey,
+        privateKey: this.rootPrivateKey,
+      };
+    }
+
+    // 根证书已经保存在本地
+    try {
+      const [pem, publicKey, privateKey] = await Promise.all([
+        readFile(path.join(this.folder, this.rootCAFileName + '.pem')),
+        readFile(path.join(this.folder, this.rootCAFileName + '.public.key')),
+        readFile(path.join(this.folder, this.rootCAFileName + '.private.key'))
+      ]);
+      const ca = pki.certificateFromPem(pem);
+      this.rootCA = ca;
+      this.rootPublicKey = publicKey;
+      this.rootPrivateKey = privateKey;
+      return { ca, publicKey, privateKey };
+    } catch (e) {
+      // do nothing
+    }
+
+    // 第一次生成根证书
+    const { ca, publicKey, privateKey } = await this.generateRoot();
+    this.rootCA = ca;
+    this.rootPublicKey = publicKey;
+    this.rootPrivateKey = privateKey;
+    await Promise.all([
+      writeFile(path.join(this.folder, this.rootCAFileName + '.pem'), pki.certificateToPem(ca)),
+      writeFile(path.join(this.folder, this.rootCAFileName + '.public.key'), publicKey),
+      writeFile(path.join(this.folder, this.rootCAFileName + '.private.key'), privateKey),
+    ]);
+    return { ca, publicKey, privateKey };
+  }
 
   // 生成服务器证书，用根证书签名
-  generateServer(hosts) {}
+  async generateServer(hosts) {
+    if (typeof hosts === 'string') hosts = [hosts];
+    const mainHost = hosts[0];
+    const keys = await this.generateKeyPair();
+    const cert = pki.createCertificate();
+    cert.publicKey = keys.publicKey;
+    cert.serialNumber = this.randomSerialNumber();
+    const now = new Date();
+    cert.validity.notBefore = new Date(now - 1000 * 60 * 60 * 24);
+    cert.validity.notAfter = new Date(now + 1000 * 60 * 60 * 24 * 365 * 2);
+    const attrsServer = ServerAttrs.slice();
+    attrsServer.unshift({ name: 'commonName', value: mainHost });
+    cert.setSubject(attrsServer);
+    cert.setIssuer(this.rootCA.issuer.attributes);
+    cert.setExtensions(ServerExtensions.concat({
+      name: 'subjectAltName',
+      altNames: hosts.map(host => {
+        if (/^[\d\.]+$/.test(host)) {
+          return { type: 7, ip: host };
+        }
+        return { type: 2, value: host };
+      })
+    }));
+    cert.sign(this.rootPrivateKey, forge.md.sha256.create());
+
+    return {
+      name: mainHost,
+      ca: cert,
+      pem: pki.certificateToPem(cert),
+      publicKey: pki.publicKeyToPem(keys.publicKey),
+      privateKey: pki.privateKeyToPem(keys.privateKey),
+    };
+  }
 }
 
 module.exports = CA;
