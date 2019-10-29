@@ -3,6 +3,7 @@
 const http = require('http');
 const https = require('https');
 const url = require('url');
+const logger = require('./logger');
 // const zlib = require('zlib');
 
 const rp = {
@@ -24,7 +25,7 @@ function requestHandler(req, res) {
 
   // logger then res.end
   const end = (body = '') => {
-    console.log(`${method} ${path} ${res.statusCode} ${Date.now() - startTime} ms - ${Buffer.byteLength(body)}`);
+    logger.info(`${method} ${path} ${res.statusCode} ${Date.now() - startTime} ms - ${Buffer.byteLength(body)}`);
 
     // gunzip => bufferToString
     // TODO: 支持压缩
@@ -39,7 +40,7 @@ function requestHandler(req, res) {
   // 如不是，直接报错
   if (!/^http/.test(path)) {
     res.statusCode = 404;
-    end('404\n');
+    end('404');
     return;
   }
 
@@ -62,8 +63,7 @@ function requestHandler(req, res) {
     method,
     path: urlObj.path,
     headers,
-    // 20s的请求时间
-    timeout: 20000,
+    timeout: 30000,
   }, (proxyRes) => {
     const statusCode = proxyRes.statusCode;
     const headers = proxyRes.headers;
@@ -79,8 +79,10 @@ function requestHandler(req, res) {
       end(body);
     });
     proxyRes.on('error', (e) => {
+      logger.warn('proxyRes error: %s', e.message);
+      logger.error(e);
       if (!res.finished) {
-        end(`proxyRes error\n${e.message}\n`);
+        end(`500 error ${e.message}`);
       }
     });
   });
@@ -91,14 +93,22 @@ function requestHandler(req, res) {
     // 如果此时还未连接成功，会触发 error 事件
     // error with an error with message Error: socket hang up and code ECONNRESET
     // 如果已经连接成功，则还是会触发 proxyRes 的 end 事件
+    logger.warn('request timeout path: %s', path);
     proxyClient.abort();
   });
 
   // error handler
   proxyClient.on('error', (e) => {
     res.statusCode = 500;
-    // console.log(e);
-    end(`500 error\n${e.message}\n`);
+    logger.warn('proxyClient error: %s', e.message);
+
+    if (e.message === 'socket hang up') {
+      end('500 error timeout');
+      return;
+    }
+
+    logger.error(e);
+    end(`500 error ${e.message}`);
   });
 
   // 传输数据，发出请求

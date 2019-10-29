@@ -13,6 +13,9 @@ const { promisify } = require('util');
 const fs = require('fs');
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
+const LRU = require('lru-cache');
+const logger = require('./logger');
+const once = require('./once');
 
 const CAattrs = [{
   name: 'commonName',
@@ -121,6 +124,11 @@ class CA {
 
     this.folder = folder;
     this.rootCAFileName = 'root';
+    this.serverCache = new LRU(50);
+
+    this.getRoot().catch(e => {
+      logger.error(e);
+    });
   }
 
   randomSerialNumber() {
@@ -148,9 +156,10 @@ class CA {
     const cert = pki.createCertificate();
     cert.publicKey = keys.publicKey;
     cert.serialNumber = this.randomSerialNumber();
-    const now = new Date();
-    cert.validity.notBefore = new Date(now - 1000 * 60 * 60 * 24);
-    cert.validity.notAfter = new Date(now + 1000 * 60 * 60 * 24 * 365 * 10);
+    cert.validity.notBefore = new Date();
+    cert.validity.notBefore.setDate(cert.validity.notBefore.getDate() - 1);
+    cert.validity.notAfter = new Date();
+    cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 10);
     cert.setSubject(CAattrs);
     cert.setIssuer(CAattrs);
     cert.setExtensions(CAextensions);
@@ -158,8 +167,10 @@ class CA {
 
     return {
       ca: cert,
-      publicKey: pki.publicKeyToPem(keys.publicKey),
-      privateKey: pki.privateKeyToPem(keys.privateKey),
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey,
+      // publicKey: pki.publicKeyToPem(keys.publicKey),
+      // privateKey: pki.privateKeyToPem(keys.privateKey),
     };
   }
 
@@ -175,15 +186,18 @@ class CA {
 
     // 根证书已经保存在本地
     try {
-      const [pem, publicKey, privateKey] = await Promise.all([
+      let [ca, publicKey, privateKey] = await Promise.all([
         readFile(path.join(this.folder, this.rootCAFileName + '.pem')),
         readFile(path.join(this.folder, this.rootCAFileName + '.public.key')),
         readFile(path.join(this.folder, this.rootCAFileName + '.private.key'))
       ]);
-      const ca = pki.certificateFromPem(pem);
+      ca = pki.certificateFromPem(ca);
+      publicKey = pki.publicKeyFromPem(publicKey);
+      privateKey = pki.privateKeyFromPem(privateKey);
       this.rootCA = ca;
       this.rootPublicKey = publicKey;
       this.rootPrivateKey = privateKey;
+      logger.info('root ca loaded');
       return { ca, publicKey, privateKey };
     } catch (e) {
       // do nothing
@@ -196,9 +210,10 @@ class CA {
     this.rootPrivateKey = privateKey;
     await Promise.all([
       writeFile(path.join(this.folder, this.rootCAFileName + '.pem'), pki.certificateToPem(ca)),
-      writeFile(path.join(this.folder, this.rootCAFileName + '.public.key'), publicKey),
-      writeFile(path.join(this.folder, this.rootCAFileName + '.private.key'), privateKey),
+      writeFile(path.join(this.folder, this.rootCAFileName + '.public.key'), pki.publicKeyToPem(publicKey)),
+      writeFile(path.join(this.folder, this.rootCAFileName + '.private.key'), pki.privateKeyToPem(privateKey)),
     ]);
+    logger.info('root ca generated');
     return { ca, publicKey, privateKey };
   }
 
@@ -210,9 +225,10 @@ class CA {
     const cert = pki.createCertificate();
     cert.publicKey = keys.publicKey;
     cert.serialNumber = this.randomSerialNumber();
-    const now = new Date();
-    cert.validity.notBefore = new Date(now - 1000 * 60 * 60 * 24);
-    cert.validity.notAfter = new Date(now + 1000 * 60 * 60 * 24 * 365 * 2);
+    cert.validity.notBefore = new Date();
+    cert.validity.notBefore.setDate(cert.validity.notBefore.getDate() - 1);
+    cert.validity.notAfter = new Date();
+    cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 2);
     const attrsServer = ServerAttrs.slice();
     attrsServer.unshift({ name: 'commonName', value: mainHost });
     cert.setSubject(attrsServer);
@@ -220,7 +236,7 @@ class CA {
     cert.setExtensions(ServerExtensions.concat({
       name: 'subjectAltName',
       altNames: hosts.map(host => {
-        if (/^[\d\.]+$/.test(host)) {
+        if (/^[\d.]+$/.test(host)) {
           return { type: 7, ip: host };
         }
         return { type: 2, value: host };
@@ -236,6 +252,45 @@ class CA {
       privateKey: pki.privateKeyToPem(keys.privateKey),
     };
   }
+
+  // 获取服务器证书
+  async getServer(hostname) {
+    // 先从缓存中获取
+    let res = this.serverCache.get(hostname);
+    if (res) return res;
+
+    res = await once.run('load_server', async () => {
+      return await this.loadServer(hostname);
+    });
+
+    return res;
+  }
+
+  // 尝试从本地获取服务端证书或第一次生成
+  async loadServer(hostname) {
+    // 从本地文件获取
+    try {
+      const [pem, privateKey] = await Promise.all([
+        readFile(path.join(this.folder, hostname + '.pem')),
+        readFile(path.join(this.folder, hostname + '.key')),
+      ]);
+      logger.debug('server %s ca loaded', hostname);
+      return { pem, privateKey };
+    } catch (e) {
+      // do nothing
+    }
+
+    // 第一次生成
+    const { pem, privateKey } = await this.generateServer(hostname);
+    await Promise.all([
+      writeFile(path.join(this.folder, hostname + '.pem'), pem),
+      writeFile(path.join(this.folder, hostname + '.key'), privateKey),
+    ]);
+    const res = { pem, privateKey };
+    this.serverCache.set(hostname, res);
+    logger.debug('server %s ca generated', hostname);
+    return res;
+  }
 }
 
-module.exports = CA;
+module.exports = new CA();
