@@ -25,7 +25,7 @@ function requestHandler(req, res) {
 
   // logger then res.end
   const end = (body = '') => {
-    logger.info(`${method} ${path} ${res.statusCode} ${Date.now() - startTime} ms - ${Buffer.byteLength(body)}`);
+    logger.info('%s %s HTTP/%s %s %s ms - %s', method, path, req.httpVersion, res.statusCode, Date.now() - startTime, Buffer.byteLength(body));
 
     // gunzip => bufferToString
     // TODO: 支持压缩
@@ -39,6 +39,7 @@ function requestHandler(req, res) {
   // 因为是代理服务器，所以需要接收完整URI
   // 如不是，直接报错
   if (!/^http/.test(path)) {
+    logger.warn('not proxy path: %s', path);
     res.statusCode = 404;
     end('404');
     return;
