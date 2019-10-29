@@ -6,18 +6,14 @@
 
 const https = require('https');
 const requestHandler = require('./requestHandler');
-const crtMgr = require('./crtMgr');
+const ca = require('./ca');
+const logger = require('./logger');
 
 // return port
 async function fakeServer(servername) {
   try {
-    const { key, crt } = await new Promise((resolve, reject) => {
-      crtMgr.getCertificate(servername, (err, key, crt) => {
-        if (err) return reject(err);
-        resolve({ key, crt });
-      });
-    });
-    const server = https.createServer({ key, cert: crt });
+    const { pem, privateKey } = await ca.getServer(servername);
+    const server = https.createServer({ key: privateKey, cert: pem });
     server.on('request', requestHandler);
     // 随机分配一个可用端口
     return await new Promise(resolve => {
@@ -26,7 +22,8 @@ async function fakeServer(servername) {
       });
     });
   } catch (e) {
-    console.log('FAKE SERVER Error:', e);
+    logger.warn('FAKE SERVER Error: %s', e.message);
+    logger.error(e);
   }
 }
 
