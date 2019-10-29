@@ -169,8 +169,6 @@ class CA {
       ca: cert,
       publicKey: keys.publicKey,
       privateKey: keys.privateKey,
-      // publicKey: pki.publicKeyToPem(keys.publicKey),
-      // privateKey: pki.privateKeyToPem(keys.privateKey),
     };
   }
 
