@@ -11,7 +11,7 @@ const rp = {
   https,
 };
 
-function requestHandler(req, res) {
+function requestHandler(proxy, req, res) {
   const startTime = Date.now();
 
   const method = req.method;
@@ -116,4 +116,8 @@ function requestHandler(req, res) {
   req.pipe(proxyClient);
 }
 
-module.exports = requestHandler;
+exports.create = function(proxy) {
+  return function(req, res) {
+    requestHandler(proxy, req, res);
+  };
+};

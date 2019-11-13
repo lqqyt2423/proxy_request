@@ -2,7 +2,7 @@
 
 const https = require('https');
 const tls = require('tls');
-const requestHandler = require('./requestHandler');
+// const requestHandler = require('./requestHandler');
 const logger = require('./logger');
 const ca = require('./ca');
 
@@ -18,19 +18,23 @@ async function SNIPrepareCert(servername, cb) {
   }
 }
 
-// man in the middle server
-const server = https.createServer({
-  // secureOptions: constants.SSL_OP_NO_SSLv3 || constants.SSL_OP_NO_TLSv1,
+exports.create = function() {
+  return https.createServer({ SNICallback: SNIPrepareCert });
+};
 
-  // 经过测试，此 https server 无需 key 和 cert 也可以，SNI 才是关键
+// // man in the middle server
+// const server = https.createServer({
+//   // secureOptions: constants.SSL_OP_NO_SSLv3 || constants.SSL_OP_NO_TLSv1,
 
-  // A function that will be called if the client supports SNI TLS extension
-  // 服务器名称指示（server name indication, SNI）
-  // 为客户端提供一种机制，可告知服务器希望与之建立连接的服务器的名称
-  // 为安全虚拟主机提供支持，可在一个 IP 部署多个证书
-  SNICallback: SNIPrepareCert,
-});
+//   // 经过测试，此 https server 无需 key 和 cert 也可以，SNI 才是关键
 
-server.on('request', requestHandler);
+//   // A function that will be called if the client supports SNI TLS extension
+//   // 服务器名称指示（server name indication, SNI）
+//   // 为客户端提供一种机制，可告知服务器希望与之建立连接的服务器的名称
+//   // 为安全虚拟主机提供支持，可在一个 IP 部署多个证书
+//   SNICallback: SNIPrepareCert,
+// });
 
-module.exports = server;
+// server.on('request', requestHandler);
+
+// module.exports = server;
