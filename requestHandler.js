@@ -5,13 +5,17 @@ const https = require('https');
 const url = require('url');
 const logger = require('./logger');
 // const zlib = require('zlib');
+const { consume } = require('./utils');
 
 const rp = {
   http,
   https,
 };
 
-function requestHandler(proxy, req, res) {
+async function requestHandler(proxy, req, res) {
+  // middle req and res object
+  let mdReq, mdRes;
+
   const startTime = Date.now();
 
   const method = req.method;
@@ -34,6 +38,7 @@ function requestHandler(proxy, req, res) {
     // }
 
     res.end(body);
+    proxy.emit('response', mdReq, mdRes);
   };
 
   // 因为是代理服务器，所以需要接收完整URI
@@ -55,37 +60,48 @@ function requestHandler(proxy, req, res) {
   // 重写headers的host属性
   // headers.host = hostname;
 
-  // 代理发出的客户端请求
-  // also support https
-  const proxyClient = rp[protocol.slice(0, -1)].request({
+  const reqBody = await consume(req);
+  mdReq = {
     protocol,
     hostname,
     port,
     method,
     path: urlObj.path,
     headers,
+    body: reqBody,
+  };
+
+  // 代理发出的客户端请求
+  // also support https
+  const proxyClient = rp[protocol.slice(0, -1)].request({
+    protocol: mdReq.protocol,
+    hostname: mdReq.hostname,
+    port: mdReq.port,
+    method: mdReq.method,
+    path: mdReq.path,
+    headers: mdReq.headers,
     timeout: 30000,
-  }, (proxyRes) => {
-    const statusCode = proxyRes.statusCode;
-    const headers = proxyRes.headers;
-
-    res.writeHead(statusCode, headers);
-
-    let body = [];
-    proxyRes.on('data', (chunk) => {
-      body.push(chunk);
-    });
-    proxyRes.on('end', () => {
-      body = Buffer.concat(body);
-      end(body);
-    });
-    proxyRes.on('error', (e) => {
+  }, async (proxyRes) => {
+    let body;
+    try {
+      body = await consume(proxyRes);
+    } catch (e) {
       logger.warn('proxyRes error: %s', e.message);
       logger.error(e);
       if (!res.finished) {
         end(`500 error ${e.message}`);
       }
-    });
+      return;
+    }
+
+    mdRes = {
+      statusCode: proxyRes.statusCode,
+      headers: proxyRes.headers,
+      body,
+    };
+
+    res.writeHead(mdRes.statusCode, mdRes.headers);
+    end(mdRes.body);
   });
 
   // timeout handler
@@ -113,7 +129,7 @@ function requestHandler(proxy, req, res) {
   });
 
   // 传输数据，发出请求
-  req.pipe(proxyClient);
+  proxyClient.end(mdReq.body);
 }
 
 exports.create = function(proxy) {
