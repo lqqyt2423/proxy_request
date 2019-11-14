@@ -22,6 +22,24 @@ function getPath(subPath) {
   return targetPath;
 }
 
+// 消耗数据流
+async function consume(stream) {
+  const chunks = [];
+  return await new Promise((resolve, reject) => {
+    stream.on('data', chunk => {
+      chunks.push(chunk);
+    });
+    stream.on('end', () => {
+      const body = Buffer.concat(chunks);
+      resolve(body);
+    });
+    stream.on('error', e => {
+      reject(e);
+    });
+  });
+}
+
 module.exports = {
   getPath,
+  consume
 };
