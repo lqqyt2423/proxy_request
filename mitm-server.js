@@ -3,8 +3,10 @@
 const https = require('https');
 const tls = require('tls');
 // const requestHandler = require('./requestHandler');
-const logger = require('./logger');
+const Logger = require('./logger');
 const ca = require('./ca');
+
+const logger = new Logger(__filename);
 
 async function SNIPrepareCert(servername, cb) {
   logger.debug('SNIPrepareCert servername:', servername);

@@ -14,8 +14,10 @@ const fs = require('fs');
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const LRU = require('lru-cache');
-const logger = require('./logger');
+const Logger = require('./logger');
 const once = require('./once');
+
+const logger = new Logger(__filename);
 
 const CAattrs = [{
   name: 'commonName',

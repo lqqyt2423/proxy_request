@@ -7,7 +7,9 @@
 const https = require('https');
 const requestHandler = require('./requestHandler');
 const ca = require('./ca');
-const logger = require('./logger');
+const Logger = require('./logger');
+
+const logger = new Logger(__filename);
 
 // return port
 async function fakeServer(servername) {

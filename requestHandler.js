@@ -3,9 +3,11 @@
 const http = require('http');
 const https = require('https');
 const url = require('url');
-const logger = require('./logger');
+const Logger = require('./logger');
 // const zlib = require('zlib');
 const { consume } = require('./utils');
+
+const logger = new Logger(__filename);
 
 const rp = {
   http,
