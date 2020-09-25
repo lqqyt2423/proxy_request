@@ -1,7 +1,7 @@
 {
-  "name": "proxy_request",
-  "version": "1.0.0",
-  "description": "simple forword proxy http/https server",
+  "name": "fwproxy",
+  "version": "1.0.1",
+  "description": "simple forword http/https proxy server",
   "main": "index.js",
   "directories": {
     "example": "examples"
@@ -17,10 +17,10 @@
     "eslint": "^7.9.0"
   },
   "bin": {
-    "proxy_request": "./bin/proxy_request.js"
+    "fwproxy": "./bin/fwproxy.js"
   },
   "scripts": {
-    "start": "node bin/proxy_request.js"
+    "start": "node bin/fwproxy.js"
   },
   "repository": {
     "type": "git",
