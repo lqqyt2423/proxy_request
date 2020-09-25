@@ -15,7 +15,7 @@ class Proxy extends EventEmitter {
     const {
       port = 7888,
       interceptServerPost = 7889,
-      interceptHttps = false, // 是否拦截解析 https 请求
+      interceptHttps = false, // should force intercept https request
       verbose = false,
     } = options;
 
@@ -27,7 +27,7 @@ class Proxy extends EventEmitter {
 
     const handler = new RequestHandler(this);
 
-    // http 代理服务
+    // http proxy server
     this.server = http.createServer();
     this.server.on('clientError', (err, socket) => {
       if (err.code === 'ECONNRESET' || !socket.writable) {
@@ -39,9 +39,9 @@ class Proxy extends EventEmitter {
       handler.handle(req, res);
     });
 
-    // ssl 隧道
+    // ssl tunnel
     this.server.on('connect', async (req, socket, head) => {
-      this.logger.info('[connect] req url: %s', req.url);
+      this.logger.info('[https] req url: %s', req.url);
 
       let proxyClient;
 
@@ -52,7 +52,7 @@ class Proxy extends EventEmitter {
       };
 
       socket.on('error', e => {
-        this.logger.warn('[connect] socket error: %s', e.message);
+        this.logger.warn('[https] socket error: %s', e.message);
         tryDestory();
       });
 
@@ -60,7 +60,7 @@ class Proxy extends EventEmitter {
       if (this.interceptHttps) {
         proxyClient = net.createConnection(this.interceptServerPost, 'localhost');
       }
-      // 直接转发 https 流量至目标服务器
+      // direct forword https request to target server
       else {
         const { port, hostname } = url.parse('http://' + req.url);
         proxyClient = net.createConnection(port, hostname);
@@ -69,17 +69,17 @@ class Proxy extends EventEmitter {
       proxyClient.setTimeout(this.timeout);
 
       proxyClient.on('error', err => {
-        this.logger.warn('[connect] proxy client socket error: %s', err.message);
+        this.logger.warn('[https] proxy client socket error: %s', err.message);
         tryDestory();
       });
 
       proxyClient.on('timeout', () => {
-        this.logger.warn('[connect] proxy client timeout: %s', req.url);
+        this.logger.warn('[https] proxy client timeout: %s', req.url);
         tryDestory();
       });
 
       proxyClient.on('connect', () => {
-        this.logger.info('[connect] proxy client connected: %s', req.url);
+        this.logger.info('[https] proxy client connected: %s', req.url);
 
         socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         proxyClient.write(head);
@@ -94,6 +94,7 @@ class Proxy extends EventEmitter {
       this.mitmServer.on('error', err => {
         this.logger.warn('mitmServer error: %s', err.message);
       });
+      // TODO: optimization
       this.mitmServer.on('request', requestHandler.create(this));
     }
   }
