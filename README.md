@@ -1,17 +1,17 @@
-# Proxy_request
+# Fwproxy
 
-Simple forword proxy http/https server.
+Simple forword http/https proxy server.
 
 ## Install
 
 ```sh
-npm i proxy_request -g
+npm i fwproxy -g
 ```
 
 ## Usage
 
 ```sh
-proxy_request
+fwproxy
 ```
 
 Direct start a forward proxy listen at 7888 port.
@@ -19,11 +19,11 @@ Direct start a forward proxy listen at 7888 port.
 ## Help
 
 ```sh
-proxy_request -h
+fwproxy -h
 ```
 
 ```
-Usage: proxy_request [options]
+Usage: fwproxy [options]
 
 simple forword proxy http/https server
 
@@ -38,7 +38,7 @@ Options:
 ## As library
 
 ```javascript
-const Proxy = require('proxy_request');
+const Proxy = require('fwproxy');
 const proxy = new Proxy({ port: 7888, verbose: true });
 
 proxy.on('error', e => {
