@@ -1,18 +1,13 @@
 'use strict';
 
 const Proxy = require('..');
-const { EggConsoleLogger } = require('egg-logger');
-const logger = new EggConsoleLogger({ level: 'DEBUG' });
+const Logger = require('../logger');
 
-const proxy = new Proxy({ port: 7888 });
+const logger = new Logger(__filename);
+const proxy = new Proxy({ port: 7888, verbose: true });
 
 proxy.on('error', e => {
   logger.error(e);
-});
-
-proxy.on('response', (req, res) => {
-  logger.info('req', req);
-  logger.info('res', res);
 });
 
 proxy.run((err) => {

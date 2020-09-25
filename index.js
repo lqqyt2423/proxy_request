@@ -4,9 +4,9 @@ const http = require('http');
 const net = require('net');
 const EventEmitter = require('events');
 const url = require('url');
+const RequestHandler = require('./handler');
 const requestHandler = require('./requestHandler');
-const mitmServer = require('./mitm-server');
-const logger = require('./logger');
+const Logger = require('./logger');
 
 class Proxy extends EventEmitter {
   constructor(options = {}) {
@@ -16,13 +16,16 @@ class Proxy extends EventEmitter {
       port = 7888,
       interceptServerPost = 7889,
       interceptHttps = false, // 是否拦截解析 https 请求
+      verbose = false,
     } = options;
 
+    this.logger = new Logger('proxy', !verbose);
     this.port = port;
     this.interceptServerPost = interceptServerPost;
     this.interceptHttps = interceptHttps;
+    this.timeout = 1000 * 30;
 
-    const handler = requestHandler.create(this);
+    const handler = new RequestHandler(this);
 
     // http 代理服务
     this.server = http.createServer();
@@ -32,11 +35,13 @@ class Proxy extends EventEmitter {
       }
       socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
     });
-    this.server.on('request', handler);
+    this.server.on('request', (req, res) => {
+      handler.handle(req, res);
+    });
 
     // ssl 隧道
     this.server.on('connect', async (req, socket, head) => {
-      logger.info('[connect] req url: %s', req.url);
+      this.logger.info('[connect] req url: %s', req.url);
 
       let proxyClient;
 
@@ -47,7 +52,7 @@ class Proxy extends EventEmitter {
       };
 
       socket.on('error', e => {
-        logger.warn('[connect] socket error: %s', e.message);
+        this.logger.warn('[connect] socket error: %s', e.message);
         tryDestory();
       });
 
@@ -61,20 +66,20 @@ class Proxy extends EventEmitter {
         proxyClient = net.createConnection(port, hostname);
       }
 
-      proxyClient.setTimeout(30000);
+      proxyClient.setTimeout(this.timeout);
 
       proxyClient.on('error', err => {
-        logger.warn('[connect] proxy client socket error: %s', err.message);
+        this.logger.warn('[connect] proxy client socket error: %s', err.message);
         tryDestory();
       });
 
       proxyClient.on('timeout', () => {
-        logger.warn('[connect] proxy client timeout: %s', req.url);
+        this.logger.warn('[connect] proxy client timeout: %s', req.url);
         tryDestory();
       });
 
       proxyClient.on('connect', () => {
-        logger.info('[connect] proxy client connected: %s', req.url);
+        this.logger.info('[connect] proxy client connected: %s', req.url);
 
         socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         proxyClient.write(head);
@@ -85,22 +90,22 @@ class Proxy extends EventEmitter {
 
     // man in the middle intercept server
     if (this.interceptHttps) {
-      this.mitmServer = mitmServer.create();
+      this.mitmServer = require('./mitm-server').create();
       this.mitmServer.on('error', err => {
-        logger.warn('mitmServer error: %s', err.message);
+        this.logger.warn('mitmServer error: %s', err.message);
       });
-      this.mitmServer.on('request', handler);
+      this.mitmServer.on('request', requestHandler.create(this));
     }
   }
 
   run(callback = () => {}) {
     this.server.listen(this.port, err => {
       if (err) return callback(err);
-      logger.info('proxy server listen at %s', this.port);
+      this.logger.info('proxy server listen at %s', this.port);
       if (this.interceptHttps) {
         this.mitmServer.listen(this.interceptServerPost, err => {
           if (err) return callback(err);
-          logger.info('https intercept server listen at %s', this.interceptServerPost);
+          this.logger.info('https intercept server listen at %s', this.interceptServerPost);
           callback(null);
         });
       } else {
