@@ -48,7 +48,7 @@ class BaseHandler {
       tryDestory();
     });
 
-    this.logger.info('begin %s to %s', req.method, req.url);
+    this.logger.info('[http] %s to %s', req.method, req.url);
     req.pipe(proxyClient);
   }
 }
