@@ -20,7 +20,7 @@ class BaseHandler {
     let proxyClient;
 
     const tryDestory = () => {
-      if (res.socket && !res.socket.destroyed) res.socket.destory();
+      if (res.socket && !res.socket.destroyed) res.socket.destory(); // BUG
       if (proxyClient && !proxyClient.aborted) proxyClient.abort();
     };
 

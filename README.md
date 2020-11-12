@@ -1,5 +1,13 @@
 # Fwproxy
 
+## TODO
+
+[ ] 中文 README
+[ ] 优化 Logger
+[x] 命令行生成根证书
+[ ] request handler 优化
+[ ] 暴露 api
+
 Simple forword http/https proxy server.
 
 ## Install

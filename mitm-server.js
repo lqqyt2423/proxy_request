@@ -21,6 +21,7 @@ async function SNIPrepareCert(servername, cb) {
 }
 
 exports.create = function() {
+  ca.init();
   return https.createServer({ SNICallback: SNIPrepareCert });
 };
 

@@ -19,7 +19,7 @@ class Proxy extends EventEmitter {
       verbose = false,
     } = options;
 
-    this.logger = new Logger('proxy', !verbose);
+    this.logger = new Logger('fwproxy', !verbose);
     this.port = port;
     this.interceptServerPost = interceptServerPost;
     this.interceptHttps = interceptHttps;
@@ -106,7 +106,6 @@ class Proxy extends EventEmitter {
       if (this.interceptHttps) {
         this.mitmServer.listen(this.interceptServerPost, err => {
           if (err) return callback(err);
-          this.logger.info('https intercept server listen at %s', this.interceptServerPost);
           callback(null);
         });
       } else {
