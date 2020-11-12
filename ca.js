@@ -121,10 +121,22 @@ class CA {
     this.folder = folder;
     this.rootCAFileName = 'root';
     this.serverCache = new LRU(50);
+  }
 
-    this.getRoot().catch(e => {
-      logger.error(e);
-    });
+  async init() {
+    return await this.getRoot()
+      .then(resp => {
+        if (resp.generate) {
+          logger.info('已生成根证书，请手动信任: %s', resp.pemFilename);
+        }
+
+        return resp;
+      })
+      .catch(e => {
+        logger.warn('获取根证书错误: ');
+        logger.error(e);
+        process.exit(1);
+      });
   }
 
   randomSerialNumber() {
@@ -170,20 +182,29 @@ class CA {
 
   // 获取根证书
   async getRoot() {
+    const pemFilename = path.join(this.folder, this.rootCAFileName + '.pem');
+    const publicKeyFilename = path.join(this.folder, this.rootCAFileName + '.public.key');
+    const privateKeyFilename = path.join(this.folder, this.rootCAFileName + '.private.key');
+
     if (this.rootCA) {
       return {
         ca: this.rootCA,
         publicKey: this.rootPublicKey,
         privateKey: this.rootPrivateKey,
+
+        generate: false, // 是否是刚生成
+        pemFilename,
+        publicKeyFilename,
+        privateKeyFilename,
       };
     }
 
     // 根证书已经保存在本地
     try {
       let [ca, publicKey, privateKey] = await Promise.all([
-        readFile(path.join(this.folder, this.rootCAFileName + '.pem')),
-        readFile(path.join(this.folder, this.rootCAFileName + '.public.key')),
-        readFile(path.join(this.folder, this.rootCAFileName + '.private.key'))
+        readFile(pemFilename),
+        readFile(publicKeyFilename),
+        readFile(privateKeyFilename)
       ]);
       ca = pki.certificateFromPem(ca);
       publicKey = pki.publicKeyFromPem(publicKey);
@@ -191,8 +212,7 @@ class CA {
       this.rootCA = ca;
       this.rootPublicKey = publicKey;
       this.rootPrivateKey = privateKey;
-      logger.info('root ca loaded');
-      return { ca, publicKey, privateKey };
+      return { ca, publicKey, privateKey, generate: false, pemFilename, publicKeyFilename, privateKeyFilename };
     } catch (e) {
       // do nothing
     }
@@ -203,12 +223,11 @@ class CA {
     this.rootPublicKey = publicKey;
     this.rootPrivateKey = privateKey;
     await Promise.all([
-      writeFile(path.join(this.folder, this.rootCAFileName + '.pem'), pki.certificateToPem(ca)),
-      writeFile(path.join(this.folder, this.rootCAFileName + '.public.key'), pki.publicKeyToPem(publicKey)),
-      writeFile(path.join(this.folder, this.rootCAFileName + '.private.key'), pki.privateKeyToPem(privateKey)),
+      writeFile(pemFilename, pki.certificateToPem(ca)),
+      writeFile(publicKeyFilename, pki.publicKeyToPem(publicKey)),
+      writeFile(privateKeyFilename, pki.privateKeyToPem(privateKey)),
     ]);
-    logger.info('root ca generated');
-    return { ca, publicKey, privateKey };
+    return { ca, publicKey, privateKey, generate: true, pemFilename, publicKeyFilename, privateKeyFilename };
   }
 
   // 生成服务器证书，用根证书签名
