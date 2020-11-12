@@ -19,108 +19,102 @@ const once = require('./once');
 
 const logger = new Logger(__filename);
 
-const CAattrs = [{
-  name: 'commonName',
-  value: 'Proxy Request CA'
-}, {
-  name: 'countryName',
-  value: 'Internet'
-}, {
-  shortName: 'ST',
-  value: 'Internet'
-}, {
-  name: 'localityName',
-  value: 'Internet'
-}, {
-  name: 'organizationName',
-  value: 'Proxy Request CA'
-}, {
-  shortName: 'OU',
-  value: 'CA'
-}];
+const CAattrs = [
+  {
+    name: 'commonName',
+    value: 'fwproxy'
+  },
+  {
+    name: 'organizationName',
+    value: 'fwproxy'
+  },
+];
 
-const CAextensions = [{
-  name: 'basicConstraints',
-  cA: true
-}, {
-  name: 'keyUsage',
-  keyCertSign: true,
-  digitalSignature: true,
-  nonRepudiation: true,
-  keyEncipherment: true,
-  dataEncipherment: true
-}, {
-  name: 'extKeyUsage',
-  serverAuth: true,
-  clientAuth: true,
-  codeSigning: true,
-  emailProtection: true,
-  timeStamping: true
-}, {
-  name: 'nsCertType',
-  client: true,
-  server: true,
-  email: true,
-  objsign: true,
-  sslCA: true,
-  emailCA: true,
-  objCA: true
-}, {
-  name: 'subjectKeyIdentifier'
-}];
+const CAextensions = [
+  {
+    name: 'basicConstraints',
+    cA: true
+  },
+  {
+    name: 'keyUsage',
+    keyCertSign: true,
+    digitalSignature: true,
+    nonRepudiation: true,
+    keyEncipherment: true,
+    dataEncipherment: true
+  },
+  {
+    name: 'extKeyUsage',
+    serverAuth: true,
+    clientAuth: true,
+    codeSigning: true,
+    emailProtection: true,
+    timeStamping: true
+  },
+  {
+    name: 'nsCertType',
+    client: true,
+    server: true,
+    email: true,
+    objsign: true,
+    sslCA: true,
+    emailCA: true,
+    objCA: true
+  },
+  {
+    name: 'subjectKeyIdentifier'
+  }
+];
 
-const ServerAttrs = [{
-  name: 'countryName',
-  value: 'Internet'
-}, {
-  shortName: 'ST',
-  value: 'Internet'
-}, {
-  name: 'localityName',
-  value: 'Internet'
-}, {
-  name: 'organizationName',
-  value: 'Proxy Request CA'
-}, {
-  shortName: 'OU',
-  value: 'Proxy Request Server Certificate'
-}];
+const ServerAttrs = [
+  {
+    name: 'organizationName',
+    value: 'fwproxy'
+  },
+];
 
-const ServerExtensions = [{
-  name: 'basicConstraints',
-  cA: false
-}, {
-  name: 'keyUsage',
-  keyCertSign: false,
-  digitalSignature: true,
-  nonRepudiation: false,
-  keyEncipherment: true,
-  dataEncipherment: true
-}, {
-  name: 'extKeyUsage',
-  serverAuth: true,
-  clientAuth: true,
-  codeSigning: false,
-  emailProtection: false,
-  timeStamping: false
-}, {
-  name: 'nsCertType',
-  client: true,
-  server: true,
-  email: false,
-  objsign: false,
-  sslCA: false,
-  emailCA: false,
-  objCA: false
-}, {
-  name: 'subjectKeyIdentifier'
-}];
+const ServerExtensions = [
+  {
+    name: 'basicConstraints',
+    cA: false
+  },
+  {
+    name: 'keyUsage',
+    keyCertSign: false,
+    digitalSignature: true,
+    nonRepudiation: false,
+    keyEncipherment: true,
+    dataEncipherment: true
+  },
+  {
+    name: 'extKeyUsage',
+    serverAuth: true,
+    clientAuth: true,
+    codeSigning: false,
+    emailProtection: false,
+    timeStamping: false
+  },
+  {
+    name: 'nsCertType',
+    client: true,
+    server: true,
+    email: false,
+    objsign: false,
+    sslCA: false,
+    emailCA: false,
+    objCA: false
+  },
+  {
+    name: 'subjectKeyIdentifier'
+  }
+];
+
 
 class CA {
 
-  // folder: 传入保存证书的文件夹，如果是相对地址，则相对于 process.cwd()，默认为 $HOME/.proxy_request/
+  // folder: 传入保存证书的文件夹，如果是相对地址，则相对于 process.cwd()，默认为 $HOME/.fwproxy/
   constructor(folder) {
-    if (!folder) folder = path.join(process.env.HOME, '.proxy_request');
+    if (!folder) folder = path.join(process.env.HOME, '.fwproxy');
     if (!path.isAbsolute(folder)) folder = path.join(process.cwd(), folder);
     mkdirp.sync(folder);
 
