@@ -7,14 +7,14 @@ const logger = new Logger(__filename);
 const proxy = new Proxy({ port: 7888, verbose: true });
 
 proxy.on('error', e => {
-  logger.error(e);
+    logger.error(e);
 });
 
 proxy.run((err) => {
-  if (err) {
-    logger.error(err);
-    return;
-  }
+    if (err) {
+        logger.error(err);
+        return;
+    }
 
-  logger.info('proxy started');
+    logger.info('proxy started');
 });

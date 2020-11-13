@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "jsx": "preserve",
+    "experimentalDecorators": true,
+    "lib": [
+      "es2020"
+    ],
+    "inlineSourceMap": true,
+    "allowJs": true,
+    "outDir": "dist",
+    "alwaysStrict": true
+  },
+  "include": ["src/**/*"]
+}
