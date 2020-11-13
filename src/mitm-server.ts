@@ -20,7 +20,8 @@ export class HttpServer {
         this.fwproxy = fwproxy;
         this.server = http.createServer();
 
-        this.server.on('clientError', (err, socket) => {
+        this.server.on('clientError', (err, socket: net.Socket) => {
+            this.logger.warn('clientError: %s', err.message);
             if (err.code === 'ECONNRESET' || !socket.writable) {
                 return;
             }
@@ -54,7 +55,6 @@ export class HttpServer {
     public handleHttps() {
         // 1. 收到 connect 请求
         this.server.on('connect', async (req: http.IncomingMessage, socket: net.Socket, head: Buffer) => {
-            this.logger.info('ssl tunnel: %s', req.url);
 
             let proxyClient: net.Socket;
 
@@ -76,6 +76,7 @@ export class HttpServer {
             }
             // 直接转发 https 流量
             else {
+                this.logger.info('ssl tunnel: %s', req.url);
                 const { port, hostname } = url.parse('http://' + req.url);
                 proxyClient = net.createConnection({ port: parseInt(port), host: hostname });
             }
@@ -125,7 +126,7 @@ export class MitmServer {
         // 为安全虚拟主机提供支持，可在一个 IP 部署多个证书
         this.server = https.createServer({
             SNICallback: async (servername, callback) => {
-                this.logger.debug('SNICallback servername: %s', servername);
+                // this.logger.debug('SNICallback servername: %s', servername);
                 try {
                     const { pem, privateKey } = await ca.getServer(servername);
                     const ctx = tls.createSecureContext({ key: privateKey, cert: pem });
