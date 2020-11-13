@@ -35,7 +35,7 @@ export class HttpServer {
             this.logger.warn('error', err.message);
         });
 
-        this.server.on('request', requestHandler.register());
+        this.server.on('request', requestHandler.register('http'));
         this.handleHttps();
     }
 
@@ -145,7 +145,7 @@ export class MitmServer {
             this.logger.warn('error', err.message);
         });
 
-        this.server.on('request', requestHandler.register());
+        this.server.on('request', requestHandler.register('https'));
     }
 
     public async start() {
