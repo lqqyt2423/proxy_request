@@ -284,11 +284,12 @@ export class CA {
             return await this.loadServer(hostname);
         });
 
+        this.serverCache.set(hostname, res);
         return res;
     }
 
     // 尝试从本地获取服务端证书或第一次生成
-    public async loadServer(hostname: string): Promise<IServerCert> {
+    private async loadServer(hostname: string): Promise<IServerCert> {
         // 从本地文件获取
         try {
             const [pem, privateKey] = await Promise.all([
@@ -308,7 +309,6 @@ export class CA {
             writeFile(path.join(this.folder, hostname + '.key'), privateKey),
         ]);
         const res: IServerCert = { pem, privateKey };
-        this.serverCache.set(hostname, res);
         logger.debug('server %s ca generated', hostname);
         return res;
     }

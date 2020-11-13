@@ -4,6 +4,8 @@ import * as https from 'https';
 import { FwProxy } from '.';
 import { Logger } from './logger';
 
+type NetProtocol = 'http' | 'https';
+
 export class RequestHandler {
     private fwproxy: FwProxy;
     private logger: Logger;
@@ -13,16 +15,16 @@ export class RequestHandler {
         this.logger = new Logger('FwProxy RequestHandler');
     }
 
-    public register() {
+    public register(protocol: NetProtocol) {
         return (req: http.IncomingMessage, res: http.ServerResponse) => {
-            this.handle(req, res);
+            this.handle(req, res, protocol);
         };
     }
 
-    public handle(req: http.IncomingMessage, res: http.ServerResponse) {
+    public handle(req: http.IncomingMessage, res: http.ServerResponse, protocol: NetProtocol) {
 
         // 代理服务器收到的请求 url 必须是完整的
-        if (!/^http/.test(req.url)) {
+        if (protocol === 'http' && !/^http/.test(req.url)) {
             res.statusCode = 400;
             res.end();
             return;
@@ -36,10 +38,11 @@ export class RequestHandler {
             if (proxyClient && !proxyClient.aborted) proxyClient.abort();
         };
 
-        const urlObj = url.parse(req.url);
+        const remoteUrl = protocol === 'https' ? `https://${req.headers.host}${req.url}` : req.url;
+        const urlObj = url.parse(remoteUrl);
         const reqOptions: http.RequestOptions = {
             hostname: urlObj.hostname,
-            port: urlObj.port || 80,
+            port: urlObj.port || (protocol === 'https' ? 443 : 80),
             method: req.method,
             path: urlObj.path,
             headers: req.headers,
@@ -52,7 +55,7 @@ export class RequestHandler {
             proxyRes.pipe(res);
         };
 
-        if (urlObj.protocol === 'https') {
+        if (protocol === 'https') {
             proxyClient = https.request(reqOptions, reqCallback);
         } else {
             proxyClient = http.request(reqOptions, reqCallback);
@@ -68,7 +71,7 @@ export class RequestHandler {
             tryDestroy();
         });
 
-        this.logger.info('%s %s %s', urlObj.protocol, req.method, req.url);
+        this.logger.info('%s %s %s', protocol, req.method, req.url);
 
         // 1. 代理服务器收到的请求 => 请求远端
         req.pipe(proxyClient);
