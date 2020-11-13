@@ -45,15 +45,15 @@ class Proxy extends EventEmitter {
 
       let proxyClient;
 
-      // try destory socket and proxyClient socket when error
-      const tryDestory = () => {
+      // try destroy socket and proxyClient socket when error
+      const tryDestroy = () => {
         if (!socket.destroyed) socket.destroy();
         if (proxyClient && !proxyClient.destroyed) proxyClient.destroy();
       };
 
       socket.on('error', e => {
         this.logger.warn('[https] socket error: %s', e.message);
-        tryDestory();
+        tryDestroy();
       });
 
       // man in the middle
@@ -70,12 +70,12 @@ class Proxy extends EventEmitter {
 
       proxyClient.on('error', err => {
         this.logger.warn('[https] proxy client socket error: %s', err.message);
-        tryDestory();
+        tryDestroy();
       });
 
       proxyClient.on('timeout', () => {
         this.logger.warn('[https] proxy client timeout: %s', req.url);
-        tryDestory();
+        tryDestroy();
       });
 
       proxyClient.on('connect', () => {

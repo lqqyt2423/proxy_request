@@ -19,8 +19,8 @@ class BaseHandler {
 
     let proxyClient;
 
-    const tryDestory = () => {
-      if (res.socket && !res.socket.destroyed) res.socket.destory(); // BUG
+    const tryDestroy = () => {
+      if (res.socket && !res.socket.destroyed) res.socket.destroy();
       if (proxyClient && !proxyClient.aborted) proxyClient.abort();
     };
 
@@ -40,12 +40,12 @@ class BaseHandler {
 
     proxyClient.on('error', e => {
       this.logger.warn('[handler] proxy client %s %s error: %s', req.method, req.url, e.message);
-      tryDestory();
+      tryDestroy();
     });
 
     proxyClient.on('timeout', () => {
       this.logger.warn('[handler] proxy client %s %s', req.method, req.url);
-      tryDestory();
+      tryDestroy();
     });
 
     this.logger.info('[http] %s to %s', req.method, req.url);
