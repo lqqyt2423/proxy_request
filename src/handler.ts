@@ -3,6 +3,7 @@ import * as http from 'http';
 import * as https from 'https';
 import { FwProxy } from '.';
 import { Logger } from './logger';
+import { errInfo, ICodeError } from './mitm-server';
 
 type NetProtocol = 'http' | 'https';
 
@@ -50,7 +51,9 @@ export class RequestHandler {
             method: req.method,
             path: urlObj.path,
             headers: req.headers,
-            timeout: this.fwproxy.connTimeout,
+
+            // 不设置超时
+            // timeout: this.fwproxy.connTimeout,
         };
 
         // 2. 远端响应 => 代理服务器响应
@@ -65,17 +68,17 @@ export class RequestHandler {
             proxyClient = http.request(reqOptions, reqCallback);
         }
 
-        proxyClient.on('error', e => {
-            this.logger.warn('proxyClient error %s %s error: %s', req.method, req.url, e.message);
+        proxyClient.on('error', (err: ICodeError) => {
+            this.logger.warn('proxyClient error %s when %s %s', errInfo(err), req.method, remoteUrl);
             tryDestroy();
         });
 
         proxyClient.on('timeout', () => {
-            this.logger.warn('proxyClient timeout %s %s', req.method, req.url);
+            this.logger.warn('proxyClient timeout when %s %s', req.method, remoteUrl);
             tryDestroy();
         });
 
-        this.logger.info('%s %s %s', protocol, req.method, req.url);
+        this.logger.info('%s %s %s', protocol, req.method, remoteUrl);
 
         // 1. 代理服务器收到的请求 => 请求远端
         req.pipe(proxyClient);

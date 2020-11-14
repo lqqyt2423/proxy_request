@@ -8,6 +8,14 @@ import { ca } from './ca';
 import { RequestHandler } from './handler';
 import { FwProxy } from '.';
 
+export interface ICodeError extends Error {
+    code: string;
+}
+
+export const errInfo = (err: ICodeError) => {
+    return `[message: ${err.message}, code: ${err.code}]`;
+};
+
 export class HttpServer {
     private logger: Logger;
     private server: http.Server;
@@ -20,20 +28,20 @@ export class HttpServer {
         this.fwproxy = fwproxy;
         this.server = http.createServer();
 
-        this.server.on('clientError', (err, socket: net.Socket) => {
-            this.logger.warn('clientError: %s', err.message);
+        this.server.on('clientError', (err: ICodeError, socket: net.Socket) => {
             if (err.code === 'ECONNRESET' || !socket.writable) {
                 return;
             }
+            this.logger.warn('clientError: %s', errInfo(err));
             socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
         });
 
-        this.server.on('error', (err: any) => {
+        this.server.on('error', (err: ICodeError) => {
             if (err.code === 'EADDRINUSE') {
                 this.logger.error('中间人服务器启动失败，%s 端口被占用', this.port);
                 process.exit(1);
             }
-            this.logger.warn('error', err.message);
+            this.logger.error(errInfo(err));
         });
 
         this.server.on('request', requestHandler.register('http'));
@@ -68,13 +76,12 @@ export class HttpServer {
                 }
             };
 
-            socket.on('error', (err: any) => {
+            socket.on('error', (err: ICodeError) => {
                 if (err.code === 'ECONNRESET') {
-                    this.logger.warn('socket ECONNRESET');
                     return;
                 }
 
-                this.logger.warn('connect socket error: %s %s', err.message, err.code);
+                this.logger.warn('connect socket error %s when %s', errInfo(err), req.url);
                 tryDestroy();
             });
 
@@ -93,18 +100,17 @@ export class HttpServer {
             // 并不理解的含义，先注释掉
             // proxyClient.setTimeout(this.fwproxy.connTimeout);
 
-            proxyClient.on('error', (err: any) => {
+            proxyClient.on('error', (err: ICodeError) => {
                 if (err.code === 'ECONNRESET') {
-                    this.logger.info('proxyClient ECONNRESET');
                     return;
                 }
 
                 if (err.code === 'EPIPE') {
-                    this.logger.info('proxyClient EPIPE');
+                    this.logger.warn('proxyClient EPIPE');
                     return;
                 }
 
-                this.logger.warn('connect proxyClient socket error: %s %s', err.message, err.code);
+                this.logger.warn('connect proxyClient socket url: %s, error: %s', req.url, errInfo(err));
                 tryDestroy();
             });
 
@@ -158,16 +164,16 @@ export class MitmServer {
             }
         });
 
-        this.server.on('tlsClientError', (err: any) => {
-            this.logger.warn('tlsClientError: %s %s', err.message, err.code);
+        this.server.on('tlsClientError', (err: ICodeError) => {
+            this.logger.warn('tlsClientError: %s', errInfo(err));
         });
 
-        this.server.on('error', (err: any) => {
+        this.server.on('error', (err: ICodeError) => {
             if (err.code === 'EADDRINUSE') {
                 this.logger.error('中间人服务器启动失败，%s 端口被占用', this.port);
                 process.exit(1);
             }
-            this.logger.warn('error', err.message);
+            this.logger.error(errInfo(err));
         });
 
         this.server.on('request', requestHandler.register('https'));
