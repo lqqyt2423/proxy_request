@@ -34,7 +34,9 @@ export class FwProxy extends EventEmitter {
         this.interceptServerPort = 7889;
         // 是否强制解析 https
         this.interceptHttps = options.interceptHttps || false;
-        // 请求最大时长，超过直接关闭连接
+
+        // 请求最大时长，超过直接关闭连接，没有使用
+        // 所有的超时都用系统自带的 ETIMEDOUT
         this.connTimeout = 1000 * 30;
 
         this.requestHandler = new RequestHandler(this);

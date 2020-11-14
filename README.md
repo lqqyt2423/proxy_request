@@ -5,6 +5,7 @@
 - [x] 命令行生成根证书
 - [x] to typescript
 - [x] request handler 优化
+- [ ] HTTP2
 - [ ] 解决报错和性能的问题（需要再看下标准库 http,https,tls,net 理解 agent,reusesocket 等相关概念）
 - [ ] 中文 README
 - [ ] 优化 Logger

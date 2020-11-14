@@ -12,14 +12,14 @@ const logger = new Logger('FwProxy cmd');
 program
     .version(pkg.version)
     .description(pkg.description)
-    .option('--no-verbose', 'don\'t show log')
+    .option('-s --silent', 'don\'t show verbose log', false)
     .option('-v --verbose', 'show verbose log', true)
     .option('-p --port <number>', 'define proxy server port', '7888')
     .option('-i --intercept', 'intercept(decrypt) https requests', false)
     .option('--genRootCA', 'generate root certificate', false)
     .parse();
 
-const { verbose, port, intercept, genRootCA } = program;
+const { silent, verbose, port, intercept, genRootCA } = program;
 
 if (genRootCA) {
     ca.init()
@@ -31,7 +31,8 @@ if (genRootCA) {
 }
 
 else {
-    const fwproxy = new FwProxy({ port: parseInt(port), verbose, interceptHttps: intercept });
+    const showLog = silent ? false : verbose;
+    const fwproxy = new FwProxy({ port: parseInt(port), verbose: showLog, interceptHttps: intercept });
 
     fwproxy.on('error', err => {
         logger.error(err);

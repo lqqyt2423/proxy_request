@@ -8,7 +8,7 @@ export class Logger {
 
     constructor(prefix: string) {
         this.prefix = prefix;
-        this._logger = new EggConsoleLogger({ level: 'DEBUG' });
+        this._logger = new EggConsoleLogger({ level: 'INFO' });
     }
 
     public _log(level: LoggerLevel, ...args: any[]) {
