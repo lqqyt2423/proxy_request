@@ -5,6 +5,7 @@
 - [x] 命令行生成根证书
 - [x] to typescript
 - [x] request handler 优化
+- [ ] ipc(unix domain) 或 更加性能高的方案
 - [ ] HTTP2
 - [ ] 解决报错和性能的问题（需要再看下标准库 http,https,tls,net 理解 agent,reusesocket 等相关概念）
 - [ ] 中文 README
@@ -41,13 +42,15 @@ fwproxy -h
 ```
 Usage: fwproxy [options]
 
-simple forword proxy http/https server
+simple forword http/https proxy server
 
 Options:
   -V, --version       output the version number
-  --no-verbose        don't show log
+  -s --silent         don't show verbose log (default: false)
   -v --verbose        show verbose log (default: true)
-  -p --port <number>  define proxy server port (default: 7888)
+  -p --port <number>  define proxy server port (default: "7888")
+  -i --intercept      intercept(decrypt) https requests (default: false)
+  --genRootCA         generate root certificate (default: false)
   -h, --help          display help for command
 ```
 
