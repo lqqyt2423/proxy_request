@@ -60,12 +60,21 @@ export class HttpServer {
 
             // 出错时尝试释放资源
             const tryDestroy = () => {
-                if (!socket.destroyed) socket.destroy();
-                if (proxyClient && !proxyClient.destroyed) proxyClient.destroy();
+                if (!socket.destroyed) {
+                    socket.destroy();
+                }
+                if (proxyClient && !proxyClient.destroyed) {
+                    proxyClient.destroy();
+                }
             };
 
-            socket.on('error', err => {
-                this.logger.warn('connect socket error: %s', err.message);
+            socket.on('error', (err: any) => {
+                if (err.code === 'ECONNRESET') {
+                    this.logger.warn('socket ECONNRESET');
+                    return;
+                }
+
+                this.logger.warn('connect socket error: %s %s', err.message, err.code);
                 tryDestroy();
             });
 
@@ -81,10 +90,21 @@ export class HttpServer {
                 proxyClient = net.createConnection({ port: parseInt(port), host: hostname });
             }
 
-            proxyClient.setTimeout(this.fwproxy.connTimeout);
+            // 并不理解的含义，先注释掉
+            // proxyClient.setTimeout(this.fwproxy.connTimeout);
 
-            proxyClient.on('error', err => {
-                this.logger.warn('connect proxyClient socket error: %s', err.message);
+            proxyClient.on('error', (err: any) => {
+                if (err.code === 'ECONNRESET') {
+                    this.logger.info('proxyClient ECONNRESET');
+                    return;
+                }
+
+                if (err.code === 'EPIPE') {
+                    this.logger.info('proxyClient EPIPE');
+                    return;
+                }
+
+                this.logger.warn('connect proxyClient socket error: %s %s', err.message, err.code);
                 tryDestroy();
             });
 
@@ -136,6 +156,10 @@ export class MitmServer {
                     callback(err, null);
                 }
             }
+        });
+
+        this.server.on('tlsClientError', (err: any) => {
+            this.logger.warn('tlsClientError: %s %s', err.message, err.code);
         });
 
         this.server.on('error', (err: any) => {

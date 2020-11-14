@@ -34,8 +34,12 @@ export class RequestHandler {
 
         // 出错时尝试释放资源
         const tryDestroy = () => {
-            if (res.socket && !res.socket.destroyed) res.socket.destroy();
-            if (proxyClient && !proxyClient.aborted) proxyClient.abort();
+            if (res.socket && !res.socket.destroyed) {
+                res.socket.destroy();
+            }
+            if (proxyClient && !proxyClient.aborted) {
+                proxyClient.abort();
+            }
         };
 
         const remoteUrl = protocol === 'https' ? `https://${req.headers.host}${req.url}` : req.url;
