@@ -280,7 +280,7 @@ export class CA {
         let res = this.serverCache.get(hostname);
         if (res) return res;
 
-        res = await once.run('load_server', async () => {
+        res = await once.run(`load_server_${hostname}`, async () => {
             return await this.loadServer(hostname);
         });
 
