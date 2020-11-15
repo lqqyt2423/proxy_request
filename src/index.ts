@@ -3,6 +3,7 @@ import { Logger } from './logger';
 import { RequestHandler } from './handler';
 import { HttpServer, MitmServer } from './mitm-server';
 import { HTTPRecord } from './record';
+import { Viewer } from './viewer';
 
 interface IFwProxyOptions {
     port?: number;
@@ -24,8 +25,8 @@ export class FwProxy extends EventEmitter {
 
     // 存在此方法时，需要记录请求体和返回体，用于用户查看
     // 以后如果接入 web 或提供修改 body 的 api，则应该需要此方法
-    // 通过 onRecord 方法注册此方法
     public emitRecordFn: (record: HTTPRecord) => void;
+    private viewers: Array<Viewer>;
 
     constructor(options: IFwProxyOptions = {}) {
         super();
@@ -52,15 +53,24 @@ export class FwProxy extends EventEmitter {
         }
 
         this.emitRecordFn = null;
+        this.viewers = [];
     }
 
-    // 用户调用，仅能调用一次，用于注册一个回调方法，每次一个请求完成后调用此回调方法
-    // 注意用户需要自己管理请求流和响应流，一定确认使用或释放，避免内存泄漏
-    public onRecord(callback: (record: HTTPRecord) => void) {
-        if (this.emitRecordFn) throw new Error('onRecord方法仅能调用一次');
+    public addViewer(viewer: Viewer) {
+        this.viewers.push(viewer);
 
-        this.emitRecordFn = callback;
-        this.logger.show('已开启 HTTP/HTTPS 请求监听');
+        if (!this.emitRecordFn) {
+            this.emitRecordFn = (record: HTTPRecord) => {
+                for (const v of this.viewers) {
+                    v.view(record);
+                }
+
+                // 保证一定消耗掉流
+                record.reqBody.resume();
+                record.resBody.resume();
+            };
+            this.logger.show('已开启 HTTP/HTTPS 请求监听');
+        }
     }
 
     public async start() {
