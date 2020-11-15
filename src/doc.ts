@@ -53,3 +53,11 @@ import { PassThrough, Readable, Writable } from 'stream';
     pass.pipe(destination);
 }
 
+
+// Node.js 信任本地根证书？
+// https://nodejs.org/api/cli.html#cli_node_extra_ca_certs_file
+// 启动时通过环境变量 NODE_EXTRA_CA_CERTS 传入
+// 例：NODE_EXTRA_CA_CERTS=/Users/liqiang/.fwproxy/root.pem npm start
+
+// 也可自定义根证书数组，请求时当做参数传入
+// 示例：index.spec.ts
