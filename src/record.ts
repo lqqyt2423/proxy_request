@@ -8,6 +8,24 @@ import { Logger } from './logger';
 
 const logger = new Logger('FwProxy HTTPRecord');
 
+export function cloneReadStream(stream: Readable): Readable {
+    const pass = new PassThrough();
+    stream.pipe(pass);
+    return pass;
+}
+
+export async function pipeStream(stream: Readable, destination?: Writable, end = true): Promise<void> {
+    await new Promise(resolve => {
+        stream.on('end', resolve);
+
+        if (destination) {
+            stream.pipe(destination, { end });
+        } else {
+            stream.resume();
+        }
+    });
+}
+
 export class HTTPRecord {
     url: URL;
     method: string;
@@ -35,9 +53,7 @@ export class HTTPRecord {
             return;
         }
 
-        const pass = new PassThrough();
-        reqBody.pipe(pass);
-        this.reqBody = pass;
+        this.reqBody = cloneReadStream(reqBody);
     }
 
     public setResBody(resBody: Readable) {
@@ -50,9 +66,7 @@ export class HTTPRecord {
             return;
         }
 
-        const pass = new PassThrough();
-        resBody.pipe(pass);
-        this.resBody = pass;
+        this.resBody = cloneReadStream(resBody);
     }
 
     // 如果有流，一定要确保消耗掉，防止内存泄漏
@@ -91,30 +105,12 @@ export class HTTPRecord {
     // 消耗请求 body
     public async pipeReqBodyTo(destination?: Writable, end = true) {
         if (!this.reqBody) return;
-
-        await new Promise(resolve => {
-            this.reqBody.on('end', resolve);
-
-            if (destination) {
-                this.reqBody.pipe(destination, { end });
-            } else {
-                this.reqBody.resume();
-            }
-        });
+        await pipeStream(this.reqBody, destination, end);
     }
 
     // 消耗响应 body
     public async pipeResBodyTo(destination?: Writable, end = true) {
         if (!this.resBody) return;
-
-        await new Promise(resolve => {
-            this.resBody.on('end', resolve);
-
-            if (destination) {
-                this.resBody.pipe(destination, { end });
-            } else {
-                this.reqBody.resume();
-            }
-        });
+        await pipeStream(this.resBody, destination, end);
     }
 }

@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+import * as fs from 'fs';
 import { program } from 'commander';
 import { Logger } from '../logger';
 import { FwProxy } from '../';
 import { ca } from '../ca';
+import { FileViewer } from '../viewer';
 
 const pkg = require('../../package.json');
 
@@ -41,6 +43,9 @@ else {
     fwproxy.on('ready', () => {
         logger.show('fwproxy is ready');
     });
+
+    // fwproxy.addViewer(new FileViewer(process.stdout));
+    // fwproxy.addViewer(new FileViewer(fs.createWriteStream('./output.txt')));
 
     fwproxy.start();
 }
