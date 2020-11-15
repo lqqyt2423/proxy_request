@@ -1,9 +1,10 @@
-import * as url from 'url';
+import { URL } from 'url';
 import * as http from 'http';
 import * as https from 'https';
 import { FwProxy } from '.';
 import { Logger } from './logger';
 import { errInfo, ICodeError } from './mitm-server';
+import { HTTPRecord } from './record';
 
 type NetProtocol = 'http' | 'https';
 
@@ -31,6 +32,7 @@ export class RequestHandler {
             return;
         }
 
+        const record = new HTTPRecord(this.fwproxy);
         let proxyClient: http.ClientRequest;
 
         // 出错时尝试释放资源
@@ -44,12 +46,13 @@ export class RequestHandler {
         };
 
         const remoteUrl = protocol === 'https' ? `https://${req.headers.host}${req.url}` : req.url;
-        const urlObj = url.parse(remoteUrl);
+        const url = new URL(remoteUrl);
+
         const reqOptions: http.RequestOptions = {
-            hostname: urlObj.hostname,
-            port: urlObj.port || (protocol === 'https' ? 443 : 80),
+            hostname: url.hostname,
+            port: url.port || (protocol === 'https' ? 443 : 80),
             method: req.method,
-            path: urlObj.path,
+            path: url.pathname + url.search,
             headers: req.headers,
 
             // 不设置超时
@@ -60,6 +63,13 @@ export class RequestHandler {
         const reqCallback = (proxyRes: http.IncomingMessage) => {
             res.writeHead(proxyRes.statusCode, proxyRes.headers);
             proxyRes.pipe(res);
+
+            // 2. 记录请求
+            record.httpVersion = proxyRes.httpVersion;
+            record.statusCode = proxyRes.statusCode;
+            record.remoteAddress = `${proxyRes.socket.remoteAddress}:${proxyRes.socket.remotePort}`;
+            record.resHeaders = proxyRes.headers;
+            record.setResBody(proxyRes);
         };
 
         if (protocol === 'https') {
@@ -78,9 +88,14 @@ export class RequestHandler {
             tryDestroy();
         });
 
-        this.logger.info('%s %s %s', protocol, req.method, remoteUrl);
-
         // 1. 代理服务器收到的请求 => 请求远端
         req.pipe(proxyClient);
+
+        // 1. 记录请求
+        record.url = url;
+        record.method = req.method;
+        record.reqHeaders = req.headers;
+        record.reqBeginAt = new Date();
+        record.setReqBody(req);
     }
 }
