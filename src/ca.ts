@@ -122,6 +122,8 @@ export class CA {
     private rootPublicKey: forge.pki.rsa.PublicKey;
     private rootPrivateKey: forge.pki.rsa.PrivateKey;
 
+    public rootCAPemPathname: string;
+
     // folder: 传入保存证书的文件夹，如果是相对地址，则相对于 process.cwd()，默认为 $HOME/.fwproxy/
     constructor(folder?: string) {
         if (!folder) folder = path.join(process.env.HOME, '.fwproxy');
@@ -130,6 +132,7 @@ export class CA {
 
         this.folder = folder;
         this.rootCAFileName = 'root';
+        this.rootCAPemPathname = path.join(this.folder, this.rootCAFileName + '.pem');
         this.serverCache = new LRU(100);
     }
 
