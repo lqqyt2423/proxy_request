@@ -106,7 +106,6 @@ export class HttpServer {
                 }
 
                 if (err.code === 'EPIPE') {
-                    this.logger.warn('proxyClient EPIPE');
                     return;
                 }
 
