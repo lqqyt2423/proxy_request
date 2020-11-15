@@ -1,82 +1,28 @@
 # Fwproxy
 
-## TODO
+HTTP/HTTPS 代理服务，监测、篡改请求。
 
-- [x] 命令行生成根证书
-- [x] to typescript
-- [x] request handler 优化
-- [ ] ipc(unix domain) 或 更加性能高的方案
-- [ ] HTTP2
-- [ ] 解决报错和性能的问题（需要再看下标准库 http,https,tls,net 理解 agent,reusesocket 等相关概念）
-- [ ] 中文 README
-- [ ] 优化 Logger
-- [ ] 生成证书格式跟 mitmproxy 一样
-- [ ] 暴露 api
-- [ ] 测试
-- [ ] bench
-- [ ] web
-- [ ] electron
+## 特点/关键词
 
-Simple forword http/https proxy server.
+- Node.js
+- 性能高
+- 中间人攻击
 
-## Install
+## 安装
+
+暂未发布
 
 ```sh
 npm i fwproxy -g
 ```
 
-## Usage
+## 使用
 
-```sh
-fwproxy
-```
+参考 `src/bin/fwproxy.ts`
 
-Direct start a forward proxy listen at 7888 port.
+## 通过 curl 测试
 
-## Help
-
-```sh
-fwproxy -h
-```
-
-```
-Usage: fwproxy [options]
-
-simple forword http/https proxy server
-
-Options:
-  -V, --version       output the version number
-  -s --silent         don't show verbose log (default: false)
-  -v --verbose        show verbose log (default: true)
-  -p --port <number>  define proxy server port (default: "7888")
-  -i --intercept      intercept(decrypt) https requests (default: false)
-  --genRootCA         generate root certificate (default: false)
-  -h, --help          display help for command
-```
-
-## As library
-
-```javascript
-const Proxy = require('fwproxy');
-const proxy = new Proxy({ port: 7888, verbose: true });
-
-proxy.on('error', e => {
-  console.error(e);
-});
-
-proxy.run((err) => {
-  if (err) {
-    console.error(err);
-    return;
-  }
-
-  console.info('proxy started');
-});
-```
-
-## Test by curl
-
-After start proxy server, then run below commands at a new shell.
+启动此服务后，运行：
 
 ```sh
 export http_proxy=http://127.0.0.1:7888
@@ -84,3 +30,21 @@ export https_proxy=http://127.0.0.1:7888
 curl http://www.baidu.com/
 curl https://www.baidu.com/
 ```
+
+## TODO
+
+- [x] 命令行生成根证书
+- [x] to typescript
+- [x] request handler 优化
+- [x] 测试
+- [x] 解决报错和性能的问题
+- [ ] README
+- [ ] ipc(unix domain) 或 更加性能高的方案
+- [ ] 优化 Logger
+- [ ] 暴露 api
+- [ ] 兼容 anyproxy api
+- [ ] HTTP2
+- [ ] 生成证书格式跟 mitmproxy 一样
+- [ ] bench
+- [ ] web
+- [ ] electron
