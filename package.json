@@ -35,7 +35,7 @@
     "clean": "rm -rf dist",
     "build": "npm run clean && npm run tsc",
     "start": "node dist/bin/fwproxy.js -i",
-    "dev": "nodemon -e ts -i '*.spec.ts' --exec 'ts-node src/bin/fwproxy.ts -i'",
+    "dev": "nodemon --exec 'ts-node src/bin/fwproxy.ts -i'",
     "test": "mocha"
   },
   "repository": {
