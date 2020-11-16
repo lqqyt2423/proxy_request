@@ -1,0 +1,7 @@
+{
+    "ignore": [
+        "src/*.spec.ts",
+        "src/benchmark/**"
+    ],
+    "ext": "ts"
+}

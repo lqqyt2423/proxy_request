@@ -68,6 +68,7 @@ const logger = new Logger('FwProxy client-for-test');
 const rootCertificates: Array<string|Buffer> = tls.rootCertificates.slice();
 const rootCAForDirect = rootCertificates.concat([fs.readFileSync(path.join(__dirname, '.fwproxy-server-for-test', 'root.pem'))]);
 const rootCAForProxy = rootCertificates.concat([fs.readFileSync(path.join(process.env.HOME, '.fwproxy', 'root.pem'))]);
+const anyproxyRootCAForProxy = rootCertificates.concat([fs.readFileSync(path.join(process.env.HOME, '.anyproxy/certificates', 'rootCA.crt'))]);
 
 
 // 100个测试域名
@@ -77,7 +78,7 @@ for (let i = 1; i <= 100; i++) {
     hostsForTest.push(`www.${i}.com`);
 }
 // 请求并发
-const parallel = 100;
+const parallel = 50;
 const loop = 10;
 
 const directAgent = new https.Agent({ ca: rootCAForDirect });
@@ -86,6 +87,13 @@ const sslTunnelAgent = new SSLTunnelAgent({
     proxyPort: 7888,
     tlsOptions: {
         ca: rootCAForProxy,
+    }
+});
+const anyproxyAgent = new SSLTunnelAgent({
+    proxyHost: '127.0.0.1',
+    proxyPort: 8001,
+    tlsOptions: {
+        ca: anyproxyRootCAForProxy,
     }
 });
 
@@ -156,7 +164,7 @@ async function benchmark(agent: http.Agent) {
 }
 
 async function run() {
-    logger.info('单个请求body长度：256 kb');
+    logger.info('256 kb');
     logger.info('并发: %s', parallel);
 
     logger.info('开始热身');
@@ -169,6 +177,9 @@ async function run() {
 
     logger.info('benchmark: fwproxy 代理请求');
     await benchmark(sslTunnelAgent);
+
+    logger.info('benchmark: anyproxy 代理请求');
+    await benchmark(anyproxyAgent);
 }
 
 run().then(() => {
