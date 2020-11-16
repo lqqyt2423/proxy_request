@@ -8,12 +8,21 @@ import { describe } from 'mocha';
 import { Logger } from './logger';
 import * as assert from 'assert';
 import { ca } from './ca';
+import { SSLTunnelAgent } from './agent';
 
 const logger = new Logger('index.spec.ts');
 
 // 相当于信任生成的根证书
 const rootCertificates: Array<string|Buffer> = tls.rootCertificates.slice();
 rootCertificates.push(fs.readFileSync(ca.rootCAPemPathname));
+
+const sslTunnelAgent = new SSLTunnelAgent({
+    proxyHost: '127.0.0.1',
+    proxyPort: 7888,
+    tlsOptions: {
+        ca: rootCertificates,
+    },
+});
 
 describe('index.spec.ts', () => {
     it('正常请求', (done) => {
@@ -48,45 +57,15 @@ describe('index.spec.ts', () => {
 
     it('应成功代理 HTTPS 请求', (done) => {
         const req = http.request({
+            host: 'www.baidu.com',
+            port: '443',
             method: 'GET',
             path: '/',
             headers: {
                 Host: 'www.baidu.com'
             },
 
-            // 不能传入 agent
-            // agent: false,
-
-            // 创建 ssl 隧道
-            createConnection: (opts, callback) => {
-                const agentReq = http.request({
-                    host: '127.0.0.1',
-                    port: 7888,
-                    method: 'CONNECT',
-                    path: 'www.baidu.com:443',
-                    headers: {
-                        Host: 'www.baidu.com:443'
-                    },
-                    agent: false,
-                });
-
-                agentReq.on('connect', (res, socket) => {
-                    if (res.statusCode === 200) {
-                        const secureSocket = tls.connect({
-                            servername: 'www.baidu.com',
-                            socket,
-                            ca: rootCertificates,
-                        });
-                        callback(null, secureSocket);
-                    } else {
-                        done(new Error('connect error'));
-                    }
-                });
-
-                agentReq.end();
-
-                return null;
-            },
+            agent: sslTunnelAgent,
         })
             .on('error', err => {
                 done(err);
