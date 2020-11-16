@@ -10,6 +10,7 @@ interface ISSLTunnelAgentOptions extends http.AgentOptions {
     tlsOptions?: tls.ConnectionOptions;
 }
 
+// TODO: 可能存在问题
 export class SSLTunnelAgent extends http.Agent {
     private proxyHost: string;
     private proxyPort: number;
@@ -52,5 +53,9 @@ export class SSLTunnelAgent extends http.Agent {
 
         req.end();
         return null;
+    }
+
+    getName() {
+        return `${this.proxyHost}:${this.proxyPort}`;
     }
 }
