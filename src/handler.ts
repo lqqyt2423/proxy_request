@@ -69,7 +69,9 @@ export class RequestHandler {
             record.statusCode = proxyRes.statusCode;
             record.remoteAddress = `${proxyRes.socket.remoteAddress}:${proxyRes.socket.remotePort}`;
             record.resHeaders = proxyRes.headers;
-            record.setResBody(proxyRes);
+
+            record.resBody = proxyRes;
+            record.emit('resBody', record.resBody);
         };
 
         if (protocol === 'https') {
@@ -88,14 +90,17 @@ export class RequestHandler {
             tryDestroy();
         });
 
-        // 1. 代理服务器收到的请求 => 请求远端
-        req.pipe(proxyClient);
-
         // 1. 记录请求
         record.url = url;
         record.method = req.method;
         record.reqHeaders = req.headers;
         record.reqBeginAt = new Date();
-        record.setReqBody(req);
+
+        this.fwproxy.emit('record', record);
+        record.reqBody = req;
+        record.emit('reqBody', record.reqBody);
+
+        // 1. 代理服务器收到的请求 => 请求远端
+        req.pipe(proxyClient);
     }
 }
