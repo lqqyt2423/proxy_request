@@ -11,6 +11,16 @@ interface IFwProxyOptions {
     verbose?: boolean;
 }
 
+export declare interface FwProxy {
+    on(event: 'ready', listener: () => void): this;
+    on(event: 'record', listener: (record: HTTPRecord) => void): this;
+    on(event: string | symbol, listener: (...args: any[]) => void): this;
+
+    emit(event: 'ready'): boolean;
+    emit(event: 'record', record: HTTPRecord): boolean;
+    emit(event: string | symbol, ...args: any[]): boolean;
+}
+
 export class FwProxy extends EventEmitter {
     public verbose: boolean;
     public logger: Logger;
@@ -22,11 +32,6 @@ export class FwProxy extends EventEmitter {
     public requestHandler: RequestHandler;
     public httpServer: HttpServer;
     public mitmServer: MitmServer;
-
-    // 存在此方法时，需要记录请求体和返回体，用于用户查看
-    // 以后如果接入 web 或提供修改 body 的 api，则应该需要此方法
-    public emitRecordFn: (record: HTTPRecord) => void;
-    private viewers: Array<Viewer>;
 
     constructor(options: IFwProxyOptions = {}) {
         super();
@@ -51,26 +56,13 @@ export class FwProxy extends EventEmitter {
         if (this.interceptHttps) {
             this.mitmServer = new MitmServer(this.interceptServerPort, this.requestHandler, this);
         }
-
-        this.emitRecordFn = null;
-        this.viewers = [];
     }
 
     public addViewer(viewer: Viewer) {
-        this.viewers.push(viewer);
-
-        if (!this.emitRecordFn) {
-            this.emitRecordFn = (record: HTTPRecord) => {
-                for (const v of this.viewers) {
-                    v.view(record);
-                }
-
-                // 保证一定消耗掉流
-                record.reqBody.resume();
-                record.resBody.resume();
-            };
-            this.logger.show('已开启 HTTP/HTTPS 请求监听');
-        }
+        this.logger.show('添加 viewer: %s', viewer.constructor.name);
+        this.on('record', record => {
+            viewer.view(record);
+        });
     }
 
     public async start() {
