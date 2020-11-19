@@ -1,44 +1,77 @@
-import { EggConsoleLogger, LoggerLevel } from 'egg-logger';
+import * as util from 'util';
+
+enum LogLevelEnum {
+    debug,
+    info,
+    warn,
+    error
+}
+
+export type LogLevel = keyof typeof LogLevelEnum;
 
 export class Logger {
-    public static silent: boolean;
+    public static silent = false;
+    public static level: LogLevel = 'info';
 
-    public prefix: string;
-    public _logger: EggConsoleLogger;
+    public name: string;
+    private _log: Console;
 
-    constructor(prefix: string) {
-        this.prefix = prefix;
-        this._logger = new EggConsoleLogger({ level: 'INFO' });
+    constructor(name: string) {
+        this.name = name;
+        this._log = console;
     }
 
-    public _log(level: LoggerLevel, ...args: any[]) {
+    private prefix(level: LogLevel): string {
+        const now = new Date();
+        const timeStr = util.format(
+            '%s-%s-%s %s:%s:%s,%s',
+            now.getFullYear(),
+            (now.getMonth() + 1).toString().padStart(2, '0'),
+            now.getDate().toString().padStart(2, '0'),
+            now.getHours().toString().padStart(2, '0'),
+            now.getMinutes().toString().padStart(2, '0'),
+            now.getSeconds().toString().padStart(2, '0'),
+            now.getMilliseconds().toString().padStart(3, '0')
+        );
+        const lineStart = util.format('%s %s [%s] ', timeStr, level, this.name);
+        return lineStart;
+    }
+
+    private log(level: LogLevel, ...args: any[]) {
+        if (LogLevelEnum[Logger.level] > LogLevelEnum[level]) return;
+
+        const lineStart = this.prefix(level);
         if (args.length && typeof args[0] == 'string') {
-            args[0] = `[${this.prefix}] ` + args[0];
+            args[0] = lineStart + args[0];
+        } else {
+            args.unshift(lineStart);
         }
-        this._logger[level.toLowerCase()](...args);
+
+        this._log[level](...args);
     }
 
     public debug(...args: any[]) {
         if (Logger.silent) return;
-        this._log('DEBUG', ...args);
+        this.log('debug', ...args);
     }
 
     public info(...args: any[]) {
         if (Logger.silent) return;
-        this._log('INFO', ...args);
+        this.log('info', ...args);
     }
 
     public warn(...args: any[]) {
         if (Logger.silent) return;
-        this._log('WARN', ...args);
+        this.log('warn', ...args);
     }
 
     public error(...args: any[]) {
-        this._log('ERROR', ...args);
+        if (Logger.silent) return;
+        this.log('error', ...args);
     }
 
     // 给用户的提示信息
     public show(...args: any[]) {
-        this._log('INFO', ...args);
+        this.log('info', ...args);
     }
 }
