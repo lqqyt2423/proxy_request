@@ -13,10 +13,12 @@ interface IFwProxyOptions {
 
 export declare interface FwProxy {
     on(event: 'ready', listener: () => void): this;
+    on(event: 'close', listener: (err?: Error) => void): this;
     on(event: 'record', listener: (record: HTTPRecord) => void): this;
     on(event: string | symbol, listener: (...args: any[]) => void): this;
 
     emit(event: 'ready'): boolean;
+    emit(event: 'close', err?: Error): boolean;
     emit(event: 'record', record: HTTPRecord): boolean;
     emit(event: string | symbol, ...args: any[]): boolean;
 }
@@ -70,5 +72,17 @@ export class FwProxy extends EventEmitter {
         if (this.mitmServer) await this.mitmServer.start();
 
         this.emit('ready');
+    }
+
+    public close() {
+        let count = 0;
+        let resErr: Error;
+        const done = (err?: Error) => {
+            if (err) resErr = err;
+            if (++count === 2) this.emit('close', resErr);
+        };
+
+        this.httpServer.close(done);
+        this.mitmServer.close(done);
     }
 }
