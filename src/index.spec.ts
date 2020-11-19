@@ -1,10 +1,13 @@
-// 目前需要启动代理服务器后才能跑此测试
+// 模拟通过环境变量传入
+// 代理可以信任目标服务器根证书
+import * as path from 'path';
+const testServerCaPath = path.join(__dirname, './tools/.fwproxy-server-for-test/root.pem');
+process.env['FW_PROXY_EXTRA_CA_CERTS'] = testServerCaPath;
 
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
 import * as tls from 'tls';
-import * as path from 'path';
 import { describe } from 'mocha';
 import { Logger } from './logger';
 import * as assert from 'assert';
@@ -22,7 +25,6 @@ const proxyPort = 7888;
 let fwproxy: FwProxy;
 
 // 相当于信任生成的根证书
-const testServerCaPath = path.join(__dirname, './tools/.fwproxy-server-for-test/root.pem');
 const testServerCa: Array<string|Buffer> = tls.rootCertificates.slice();
 testServerCa.push(fs.readFileSync(testServerCaPath));
 
