@@ -1,10 +1,23 @@
+import * as fs from 'fs';
 import { URL } from 'url';
 import * as http from 'http';
 import * as https from 'https';
+import * as tls from 'tls';
 import { FwProxy } from '.';
 import { Logger } from './logger';
 import { errInfo, ICodeError } from './mitm-server';
 import { HTTPRecord } from './record';
+
+// 可通过环境变量传入需要信任的根证书，方便测试
+const trustCas: Array<string|Buffer> = tls.rootCertificates.slice();
+if (process.env['FW_PROXY_EXTRA_CA_CERTS']) {
+    try {
+        const data = fs.readFileSync(process.env['FW_PROXY_EXTRA_CA_CERTS']);
+        trustCas.push(data);
+    } catch (err) {
+        //
+    }
+}
 
 type NetProtocol = 'http' | 'https';
 
@@ -78,7 +91,7 @@ export class RequestHandler {
         };
 
         if (protocol === 'https') {
-            proxyClient = https.request(reqOptions, reqCallback);
+            proxyClient = https.request({ ...reqOptions, ca: trustCas }, reqCallback);
         } else {
             proxyClient = http.request(reqOptions, reqCallback);
         }
