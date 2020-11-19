@@ -55,7 +55,10 @@ export class HttpServer {
                 resolve();
             });
         });
+    }
 
+    public close(done: (err?: Error) => void) {
+        this.server.close(done);
     }
 
     // 直接 ssl tunnel 转发 https 流量
@@ -185,6 +188,9 @@ export class MitmServer {
                 resolve();
             });
         });
+    }
 
+    public close(done: (err?: Error) => void) {
+        this.server.close(done);
     }
 }

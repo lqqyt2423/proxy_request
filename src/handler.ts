@@ -45,7 +45,10 @@ export class RequestHandler {
             }
         };
 
-        const remoteUrl = protocol === 'https' ? `https://${req.headers.host}${req.url}` : req.url;
+        let remoteUrl = req.url;
+        if (!/^http/.test(remoteUrl)) {
+            remoteUrl = `${protocol}://${req.headers.host}${remoteUrl}`;
+        }
         const url = new URL(remoteUrl);
 
         const reqOptions: http.RequestOptions = {
