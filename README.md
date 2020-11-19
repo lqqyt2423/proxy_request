@@ -36,11 +36,13 @@ curl https://www.baidu.com/
 - [x] 命令行生成根证书
 - [x] to typescript
 - [x] request handler 优化
-- [x] 测试
 - [x] 解决报错和性能的问题
+- [x] 优化 Logger
+- [ ] 测试
+- [ ] Interpolator
+- [ ] Agent
 - [ ] README
 - [ ] ipc(unix domain) 或 更加性能高的方案
-- [ ] 优化 Logger
 - [ ] 暴露 api
 - [ ] 兼容 anyproxy api
 - [ ] HTTP2
