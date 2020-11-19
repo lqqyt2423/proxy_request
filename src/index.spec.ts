@@ -14,6 +14,7 @@ import * as assert from 'assert';
 import { SSLTunnelAgent } from './agent';
 import { FwProxy } from '.';
 import { TestServer } from './tools/server-for-test';
+import { Viewer } from './viewer';
 
 const logger = new Logger('index.spec.ts');
 
@@ -23,6 +24,12 @@ let echoServer: TestServer;
 
 const proxyPort = 7888;
 let fwproxy: FwProxy;
+const viewer: Viewer = {
+    name: 'test viewer',
+    view(record) {
+        //
+    }
+};
 
 // 相当于信任生成的根证书
 const testServerCa: Array<string|Buffer> = tls.rootCertificates.slice();
@@ -54,7 +61,8 @@ describe('index.spec.ts', () => {
         echoServer.start();
 
         // 启动代理服务
-        fwproxy = new FwProxy({ interceptHttps: true, verbose: true });
+        fwproxy = new FwProxy({ interceptHttps: true, verbose: false });
+        fwproxy.addViewer(viewer);
         fwproxy.on('ready', tryDone);
         fwproxy.start();
     });
@@ -143,5 +151,37 @@ describe('index.spec.ts', () => {
             });
 
         req.end();
+    });
+
+    it('观察者 viewer 可以正常使用', done => {
+        viewer.view = async record => {
+            const resp = await record.snapshot();
+            assert.strictEqual(resp.info.method, 'POST');
+            assert.strictEqual(resp.info.url, `https://localhost:${securePort}/`);
+            assert.strictEqual(resp.info.statusCode, 200);
+            assert.strictEqual(Buffer.concat(resp.resBodyBufs).toString(), 'hello world');
+            done();
+        };
+
+        const req = http.request({
+            host: 'localhost',
+            port: securePort,
+            method: 'POST',
+            path: `https://localhost:${securePort}/`,
+            headers: {
+                Host: 'localhost'
+            },
+
+            agent: sslTunnelAgent,
+        })
+            .on('error', err => {
+                done(err);
+            })
+            .on('response', res => {
+                assert.strictEqual(res.statusCode, 200);
+                res.resume();
+            });
+
+        req.end('hello world');
     });
 });

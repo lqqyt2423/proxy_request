@@ -61,7 +61,7 @@ export class FwProxy extends EventEmitter {
     }
 
     public addViewer(viewer: Viewer) {
-        this.logger.show('添加 viewer: %s', viewer.constructor.name);
+        this.logger.show('添加 viewer: %s', viewer.name);
         this.on('record', record => {
             viewer.view(record);
         });
