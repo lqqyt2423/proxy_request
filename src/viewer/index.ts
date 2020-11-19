@@ -6,12 +6,13 @@ import { Logger } from '../logger';
 
 const logger = new Logger('FwProxy Viewer');
 
-export abstract class Viewer {
-    public abstract view(record: HTTPRecord): void;
+export interface Viewer {
+    name: string;
+    view(record: HTTPRecord): void;
 }
 
-export class LogViewer extends Viewer {
-
+export class LogViewer implements Viewer {
+    public name = 'LogViewer';
     public async view(record: HTTPRecord) {
         record.on('finish', () => {
             logger.info('%s %s %s - %s ms', record.method, record.url.toString(), record.statusCode, record.resEndAt.getTime() - record.reqBeginAt.getTime());
@@ -19,12 +20,11 @@ export class LogViewer extends Viewer {
     }
 }
 
-export class FileViewer extends Viewer {
-
+export class FileViewer implements Viewer {
+    public name = 'FileViewer';
     private output: Writable;
 
     constructor(output: Writable) {
-        super();
         this.output = output;
     }
 
