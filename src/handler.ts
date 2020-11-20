@@ -7,6 +7,7 @@ import { FwProxy } from '.';
 import { Logger } from './logger';
 import { errInfo, ICodeError } from './mitm-server';
 import { HTTPRecord } from './record';
+import { IRequest, IResponse } from './interpolator';
 
 // 可通过环境变量传入需要信任的根证书，方便测试
 const trustCas: Array<string|Buffer> = tls.rootCertificates.slice();
@@ -36,7 +37,7 @@ export class RequestHandler {
         };
     }
 
-    public handle(req: http.IncomingMessage, res: http.ServerResponse, protocol: NetProtocol) {
+    public async handle(req: http.IncomingMessage, res: http.ServerResponse, protocol: NetProtocol) {
 
         // 代理服务器收到的请求 url 必须是完整的
         if (protocol === 'http' && !/^http/.test(req.url)) {
@@ -45,7 +46,7 @@ export class RequestHandler {
             return;
         }
 
-        const record = new HTTPRecord(this.fwproxy);
+        // 代理请求远端
         let proxyClient: http.ClientRequest;
 
         // 出错时尝试释放资源
@@ -58,17 +59,79 @@ export class RequestHandler {
             }
         };
 
+        // HTTP 记录
+        const record = new HTTPRecord(this.fwproxy);
+
+        // end: 响应客户端
+        const responseToClient = (resInfo: IResponse) => {
+            res.writeHead(resInfo.statusCode, resInfo.headers);
+            resInfo.body.pipe(res);
+
+            // end: 记录请求
+            record.statusCode = resInfo.statusCode;
+            record.remoteAddress = resInfo.remoteAddress;
+            record.resHeaders = resInfo.headers;
+
+            record.resBody = resInfo.body;
+            record.emit('resBody', record.resBody);
+        };
+
         let remoteUrl = req.url;
         if (!/^http/.test(remoteUrl)) {
             remoteUrl = `${protocol}://${req.headers.host}${remoteUrl}`;
         }
-        const url = new URL(remoteUrl);
+
+        // 定义请求信息
+        let reqInfo: IRequest = {
+            method: req.method,
+            url: remoteUrl,
+            httpVersion: req.httpVersion,
+            headers: req.headers,
+            body: req,
+        };
+        let resInfo: IResponse;
+
+        // hook 1: 可能直接响应，不请求远端
+        try {
+            const directResp = await this.fwproxy.modifyHandler.directResponse(reqInfo);
+            if (directResp) {
+                if (directResp.reqInfo) reqInfo = directResp.reqInfo;
+                if (directResp.resInfo) resInfo = directResp.resInfo;
+            }
+        } catch (err) {
+            this.logger.warn('modifyHandler.directResponse error: %s', err.message);
+            this.logger.debug(err);
+            tryDestroy();
+            return;
+        }
+
+        if (resInfo) {
+            // 1. 记录请求
+            record.init(reqInfo);
+
+            responseToClient(resInfo);
+            return;
+        }
+
+        // hook 2: 修改请求
+        try {
+            const changedReqInfo = await this.fwproxy.modifyHandler.changeRequest(reqInfo);
+            if (changedReqInfo) reqInfo = changedReqInfo;
+        } catch (err) {
+            this.logger.warn('modifyHandler.changeRequest error: %s', err.message);
+            this.logger.debug(err);
+            tryDestroy();
+            return;
+        }
+
+        // 1. 记录请求
+        record.init(reqInfo);
 
         const reqOptions: http.RequestOptions = {
-            hostname: url.hostname,
-            port: url.port || (protocol === 'https' ? 443 : 80),
+            hostname: record.url.hostname,
+            port: record.url.port || (protocol === 'https' ? 443 : 80),
             method: req.method,
-            path: url.pathname + url.search,
+            path: record.url.pathname + record.url.search,
             headers: req.headers,
 
             // 不设置超时
@@ -76,18 +139,26 @@ export class RequestHandler {
         };
 
         // 2. 远端响应 => 代理服务器响应
-        const reqCallback = (proxyRes: http.IncomingMessage) => {
-            res.writeHead(proxyRes.statusCode, proxyRes.headers);
-            proxyRes.pipe(res);
+        const reqCallback = async (proxyRes: http.IncomingMessage) => {
+            resInfo = {
+                statusCode: proxyRes.statusCode,
+                headers: proxyRes.headers,
+                body: proxyRes,
+                remoteAddress: `${proxyRes.socket.remoteAddress}:${proxyRes.socket.remotePort}`,
+            };
 
-            // 2. 记录请求
-            record.httpVersion = proxyRes.httpVersion;
-            record.statusCode = proxyRes.statusCode;
-            record.remoteAddress = `${proxyRes.socket.remoteAddress}:${proxyRes.socket.remotePort}`;
-            record.resHeaders = proxyRes.headers;
+            // hook 3: 修改响应
+            try {
+                const changedResInfo = await this.fwproxy.modifyHandler.changeResponse(reqInfo, resInfo);
+                if (changedResInfo) resInfo = changedResInfo;
+            } catch (err) {
+                this.logger.warn('modifyHandler.changeResponse error: %s', err.message);
+                this.logger.debug(err);
+                tryDestroy();
+                return;
+            }
 
-            record.resBody = proxyRes;
-            record.emit('resBody', record.resBody);
+            responseToClient(resInfo);
         };
 
         if (protocol === 'https') {
@@ -106,17 +177,7 @@ export class RequestHandler {
             tryDestroy();
         });
 
-        // 1. 记录请求
-        record.url = url;
-        record.method = req.method;
-        record.reqHeaders = req.headers;
-        record.reqBeginAt = new Date();
-
-        this.fwproxy.emit('record', record);
-        record.reqBody = req;
-        record.emit('reqBody', record.reqBody);
-
-        // 1. 代理服务器收到的请求 => 请求远端
-        req.pipe(proxyClient);
+        // 1. HTTP 请求 => 请求远端
+        reqInfo.body.pipe(proxyClient);
     }
 }

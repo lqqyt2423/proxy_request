@@ -5,6 +5,7 @@ import { IncomingHttpHeaders } from 'http';
 import { Readable, Writable } from 'stream';
 import { URL } from 'url';
 import { FwProxy } from '.';
+import { IRequest } from './interpolator';
 import { Logger } from './logger';
 
 const logger = new Logger('FwProxy HTTPRecord');
@@ -90,6 +91,19 @@ export class HTTPRecord extends EventEmitter {
                 this.emit('finish');
             });
         });
+    }
+
+    // 记录 HTTP 请求
+    public init(reqInfo: IRequest) {
+        this.url = new URL(reqInfo.url);
+        this.method = reqInfo.method;
+        this.httpVersion = reqInfo.httpVersion;
+        this.reqHeaders = reqInfo.headers;
+        this.reqBeginAt = new Date();
+
+        this.fwproxy.emit('record', this);
+        this.reqBody = reqInfo.body;
+        this.emit('reqBody', this.reqBody);
     }
 
     public toJSON(): IHTTPRecordMetaData {
