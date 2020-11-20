@@ -44,7 +44,7 @@ export class FileViewer implements Viewer {
         for (const buf of resBodyBufs) {
             pass.write(buf);
         }
-        pass.write('==========\n\n');
+        pass.write('\n==========\n\n');
 
         // 一块写入
         pass.pipe(this.output);
