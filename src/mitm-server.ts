@@ -88,9 +88,20 @@ export class HttpServer {
                 tryDestroy();
             });
 
+            // 是否解析 HTTPS 流量
+            let interceptHttps = this.fwproxy.interceptHttps;
+            if (!interceptHttps) {
+                try {
+                    interceptHttps = await this.fwproxy.modifyHandler.isParseSecure(req.url);
+                } catch (err) {
+                    this.logger.warn('modifyHandler.isParseSecure error: %s', err.message);
+                    this.logger.debug(err);
+                }
+            }
+
             // 2. 创建远端连接或连接至中间人服务器
             // 中间人攻击 man in the middle
-            if (this.fwproxy.interceptHttps) {
+            if (interceptHttps) {
                 proxyClient = net.createConnection({ port: this.fwproxy.interceptServerPort, host: 'localhost' });
             }
             // 直接转发 https 流量

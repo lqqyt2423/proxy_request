@@ -17,7 +17,16 @@ export class ModifyHandler {
     }
 
     public async isParseSecure(url: string): Promise<boolean> {
-        return true;
+        if (!this.interps.length) return false;
+
+        const targetInterps = this.interps.filter(interp => !!interp.isParseSecure);
+        if (!targetInterps.length) return false;
+
+        for (let i = 0, len = targetInterps.length; i < len; i++) {
+            if ((await targetInterps[i].isParseSecure(url))) return true;
+        }
+
+        return false;
     }
 
     public async directResponse(req: IRequest): Promise<{ reqInfo: IRequest, resInfo: IResponse }> {
@@ -53,17 +62,30 @@ export class ModifyHandler {
     }
 
     public async changeRequest(req: IRequest): Promise<IRequest> {
-        return null;
+        if (!this.interps.length) return null;
+
+        const targetInterps = this.interps.filter(interp => !!interp.changeRequest);
+        if (!targetInterps.length) return null;
+
+        let changedReq = req;
+        for (let i = 0, len = targetInterps.length; i < len; i++) {
+            const tmpChangedReq = await targetInterps[i].changeRequest(changedReq);
+            if (tmpChangedReq) changedReq = tmpChangedReq;
+        }
+
+        return changedReq;
     }
 
     public async changeResponse(req: IRequest, rawRes: IResponse): Promise<IResponse> {
         if (!this.interps.length) return null;
 
+        const targetInterps = this.interps.filter(interp => !!interp.changeResponse);
+        if (!targetInterps.length) return null;
+
         let res: IResponse = rawRes;
-        for (let i = 0, len = this.interps.length; i < len; i++) {
-            if (this.interps[i].changeResponse) {
-                res = await this.interps[i].changeResponse(req, res);
-            }
+        for (let i = 0, len = targetInterps.length; i < len; i++) {
+            const tmpRes = await targetInterps[i].changeResponse(req, res);
+            if (tmpRes) res = tmpRes;
         }
 
         return res;
