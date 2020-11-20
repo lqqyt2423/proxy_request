@@ -160,7 +160,7 @@ export class MitmServer {
         // 为安全虚拟主机提供支持，可在一个 IP 部署多个证书
         this.server = https.createServer({
             SNICallback: async (servername, callback) => {
-                // this.logger.debug('SNICallback servername: %s', servername);
+                this.logger.debug('SNICallback servername: %s', servername);
                 try {
                     const { pem, privateKey } = await ca.getServer(servername);
                     const ctx = tls.createSecureContext({ key: privateKey, cert: pem });

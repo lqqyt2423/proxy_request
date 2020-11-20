@@ -13,8 +13,10 @@ import { Logger } from './logger';
 import * as assert from 'assert';
 import { SSLTunnelAgent } from './agent';
 import { FwProxy } from '.';
-import { TestServer } from './tools/server-for-test';
+import { echoHandler, TestServer } from './tools/server-for-test';
 import { Viewer } from './viewer';
+import { Interpolator, IRequest, IResponse, SimpleInterpolator } from './interpolator';
+import { bufferStream } from './record';
 
 const logger = new Logger('index.spec.ts');
 
@@ -56,13 +58,14 @@ describe('index.spec.ts', () => {
         };
 
         // 启动目标服务器
-        echoServer = new TestServer(port, securePort);
+        echoServer = new TestServer(port, securePort, echoHandler);
         echoServer.on('ready', tryDone);
         echoServer.start();
 
         // 启动代理服务
-        fwproxy = new FwProxy({ interceptHttps: true, verbose: false });
+        fwproxy = new FwProxy({ interceptHttps: true, verbose: true });
         fwproxy.addViewer(viewer);
+        fwproxy.addInterpolator(new SimpleInterpolator());
         fwproxy.on('ready', tryDone);
         fwproxy.start();
     });
@@ -161,6 +164,7 @@ describe('index.spec.ts', () => {
             assert.strictEqual(resp.info.statusCode, 200);
             assert.strictEqual(Buffer.concat(resp.resBodyBufs).toString(), 'hello world');
             done();
+            viewer.view = () => { /** */ };
         };
 
         const req = http.request({
@@ -180,6 +184,147 @@ describe('index.spec.ts', () => {
             .on('response', res => {
                 assert.strictEqual(res.statusCode, 200);
                 res.resume();
+            });
+
+        req.end('hello world');
+    });
+
+    it('可自由添加或删除修改者', (done) => {
+        const testInterpolator: Interpolator = {
+            name: 'testInterpolator',
+        };
+        const len = (fwproxy.modifyHandler as any).interps.length;
+        fwproxy.addInterpolator(testInterpolator);
+        assert.strictEqual((fwproxy.modifyHandler as any).interps.length, len + 1);
+        assert(fwproxy.removeInterpolator(testInterpolator));
+        assert((fwproxy.modifyHandler as any).interps.length, len);
+
+        done();
+    });
+
+    it('修改者可修改流量', done => {
+        const interp: Interpolator = {
+            name: '修改者可修改流量',
+            async changeRequest(req) {
+                const changedReq: IRequest = req;
+                changedReq.body = 'hi world';
+                changedReq.headers['content-length'] = '8';
+                return changedReq;
+            }
+        };
+        fwproxy.addInterpolator(interp);
+
+        const req = http.request({
+            host: 'localhost',
+            port: securePort,
+            method: 'POST',
+            path: `https://localhost:${securePort}/`,
+            headers: {
+                Host: 'localhost'
+            },
+
+            agent: sslTunnelAgent,
+        })
+            .on('error', err => {
+                done(err);
+            })
+            .on('response', res => {
+                assert.strictEqual(res.statusCode, 200);
+                // 添加了头部
+                assert.strictEqual(res.headers['proxy-server'], 'fwproxy');
+                bufferStream(res).then(bufs => {
+                    assert.strictEqual(Buffer.concat(bufs).toString(), 'hi world');
+                    fwproxy.removeInterpolator(interp);
+                    done();
+                });
+            });
+
+        req.end('hello world');
+    });
+
+    it('修改者可修改流量2', done => {
+        const interp: Interpolator = {
+            name: '修改者可修改流量2',
+            async changeResponse(req, res) {
+                const changedRes: IResponse = res;
+                changedRes.body = 'hi world';
+                return res;
+            },
+        };
+        fwproxy.addInterpolator(interp);
+
+        const req = http.request({
+            host: 'localhost',
+            port: securePort,
+            method: 'POST',
+            path: `https://localhost:${securePort}/`,
+            headers: {
+                Host: 'localhost'
+            },
+
+            agent: sslTunnelAgent,
+        })
+            .on('error', err => {
+                done(err);
+            })
+            .on('response', res => {
+                assert.strictEqual(res.statusCode, 200);
+                // 添加了头部
+                assert.strictEqual(res.headers['proxy-server'], 'fwproxy');
+                bufferStream(res).then(bufs => {
+                    assert.strictEqual(Buffer.concat(bufs).toString(), 'hi world');
+                    fwproxy.removeInterpolator(interp);
+                    done();
+                });
+            });
+
+        req.end('hello world');
+    });
+
+    it('修改者修改后的流量观察者可看到', done => {
+        viewer.view = async record => {
+            const resp = await record.snapshot();
+            assert.strictEqual(resp.info.method, 'POST');
+            assert.strictEqual(resp.info.url, `https://localhost:${securePort}/`);
+            assert.strictEqual(resp.info.statusCode, 200);
+            assert.strictEqual(resp.info.resHeaders['proxy-server'], 'fwproxy');
+            assert.strictEqual(Buffer.concat(resp.resBodyBufs).toString(), 'hi world');
+            done();
+            viewer.view = () => { /** */ };
+        };
+
+        const interp: Interpolator = {
+            name: '修改者修改后的流量观察者可看到',
+            async changeResponse(req, res) {
+                const changedRes: IResponse = res;
+                changedRes.body = 'hi world';
+                return res;
+            },
+        };
+        fwproxy.addInterpolator(interp);
+
+        const req = http.request({
+            host: 'localhost',
+            port: securePort,
+            method: 'POST',
+            path: `https://localhost:${securePort}/`,
+            headers: {
+                Host: 'localhost'
+            },
+
+            agent: sslTunnelAgent,
+        })
+            .on('error', err => {
+                done(err);
+            })
+            .on('response', res => {
+                assert.strictEqual(res.statusCode, 200);
+                // 添加了头部
+                assert.strictEqual(res.headers['proxy-server'], 'fwproxy');
+                bufferStream(res).then(bufs => {
+                    assert.strictEqual(Buffer.concat(bufs).toString(), 'hi world');
+                    fwproxy.removeInterpolator(interp);
+                });
             });
 
         req.end('hello world');

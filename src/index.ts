@@ -67,7 +67,7 @@ export class FwProxy extends EventEmitter {
     }
 
     public addViewer(viewer: Viewer) {
-        this.logger.show('添加 viewer: %s', viewer.name);
+        this.logger.info('添加 viewer: %s', viewer.name);
         this.on('record', record => {
             viewer.view(record);
         });
@@ -75,6 +75,10 @@ export class FwProxy extends EventEmitter {
 
     public addInterpolator(interpolator: Interpolator) {
         this.modifyHandler.add(interpolator);
+    }
+
+    public removeInterpolator(interpolator: Interpolator): boolean {
+        return this.modifyHandler.remove(interpolator);
     }
 
     public async start() {

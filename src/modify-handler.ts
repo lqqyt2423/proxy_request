@@ -6,7 +6,7 @@ import { Logger } from './logger';
 export function transformToStream(input: Readable | Buffer | string): Readable {
     if (input instanceof Readable) return input;
     const pass = new PassThrough();
-    pass.write(input);
+    pass.end(input);
     return pass;
 }
 
@@ -82,6 +82,7 @@ export class ModifyHandler {
         const targetInterps = this.interps.filter(interp => !!interp.changeRequest);
         if (!targetInterps.length) return null;
 
+        const rawReqBody = req.body;
         let changedReq = req;
         for (let i = 0, len = targetInterps.length; i < len; i++) {
             try {
@@ -90,9 +91,13 @@ export class ModifyHandler {
             } catch (err) {
                 this.logger.error('changeRequest', err);
             }
-
         }
 
+        // 若请求流变化，主动消耗原始请求流，防止内存泄漏
+        if (changedReq.body !== rawReqBody) {
+            this.logger.debug('rawReqBody resume');
+            rawReqBody.resume();
+        }
         return changedReq;
     }
 
@@ -102,6 +107,7 @@ export class ModifyHandler {
         const targetInterps = this.interps.filter(interp => !!interp.changeResponse);
         if (!targetInterps.length) return null;
 
+        const rawResBody = rawRes.body;
         let res = rawRes;
         for (let i = 0, len = targetInterps.length; i < len; i++) {
             try {
@@ -112,12 +118,26 @@ export class ModifyHandler {
             }
         }
 
+        // 若响应流变化，主动消耗原始响应流，防止内存泄漏
+        if (res.body !== rawResBody) {
+            this.logger.debug('rawResBody resume');
+            rawResBody.resume();
+        }
         return res;
     }
 
     // TODO: validate
     public add(interpolator: Interpolator) {
-        this.logger.show('添加 interpolator: %s', interpolator.name);
+        this.logger.info('添加 interpolator: %s', interpolator.name);
         this.interps.push(interpolator);
+    }
+
+    public remove(interpolator: Interpolator): boolean {
+        const index = this.interps.indexOf(interpolator);
+        if (index === -1) return false;
+
+        this.logger.info('删除 interpolator: %s', interpolator.name);
+        this.interps.splice(index, 1);
+        return true;
     }
 }
