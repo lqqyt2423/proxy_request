@@ -126,9 +126,14 @@ export class HTTPRecord extends EventEmitter {
             let reqBodyBufs: Array<Buffer> = [];
             let resBodyBufs: Array<Buffer> = [];
 
+            let count = 0;
+
             this.on('reqBody', reqBody => {
                 bufferStream(reqBody).then(bufs => {
                     reqBodyBufs = bufs;
+                }).finally(() => {
+                    if (++count === 2)
+                        resolve({ info: this.toJSON(), reqBodyBufs, resBodyBufs });
                 });
             });
 
@@ -136,8 +141,8 @@ export class HTTPRecord extends EventEmitter {
                 bufferStream(resBody).then(bufs => {
                     resBodyBufs = bufs;
                 }).finally(() => {
-                    // finish
-                    resolve({ info: this.toJSON(), reqBodyBufs, resBodyBufs });
+                    if (++count === 2)
+                        resolve({ info: this.toJSON(), reqBodyBufs, resBodyBufs });
                 });
             });
         });
