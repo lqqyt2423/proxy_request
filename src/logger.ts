@@ -11,7 +11,7 @@ export type LogLevel = keyof typeof LogLevelEnum;
 
 export class Logger {
     public static silent = false;
-    public static level: LogLevel = 'debug';
+    public static level: LogLevel = 'info';
 
     public name: string;
     private _log: Console;
