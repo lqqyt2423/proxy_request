@@ -34,3 +34,15 @@ export interface Interpolator {
     // 远端响应前修改响应
     changeResponse?: (req: IRequest, rawRes: IResponse) => Promise<IResponse>;
 }
+
+export class SimpleInterpolator implements Interpolator {
+    public name = 'SimpleInterpolator';
+    private headerName = 'fwproxy';
+
+    // 添加 fwproxy 头部
+    public async changeResponse(req: IRequest, rawRes: IResponse) {
+        const res = rawRes;
+        res.headers['proxy-server'] = this.headerName;
+        return res;
+    }
+}
