@@ -3,9 +3,10 @@
 import * as http from 'http';
 import { Readable } from 'stream';
 
-export interface IChangeRequest {
+export interface IRequest {
     method?: string;
-    path?: string;
+    url?: string;
+    httpVersion?: string;
     headers?: http.IncomingHttpHeaders;
     body?: Readable;
 }
@@ -14,18 +15,22 @@ export interface IResponse {
     statusCode?: number;
     headers?: http.IncomingHttpHeaders;
     body?: Readable;
+    remoteAddress?: string;
 }
 
 export interface Interpolator {
+
+    name: string;
+
     // 是否解析 HTTPS 流量
     isParseSecure?: (url: string) => Promise<boolean>;
 
-    // 发送请求前修改请求
-    changeRequest?: (req: http.IncomingMessage) => Promise<IChangeRequest>;
-
     // 不发送请求，直接返回结果
-    directResponse?: (req: http.IncomingMessage) => Promise<IResponse>;
+    directResponse?: (req: IRequest) => Promise<IResponse>;
+
+    // 发送请求前修改请求
+    changeRequest?: (req: IRequest) => Promise<IRequest>;
 
     // 远端响应前修改响应
-    changeResponse?: (req: http.IncomingMessage, rawRes: IResponse) => Promise<IResponse>;
+    changeResponse?: (req: IRequest, rawRes: IResponse) => Promise<IResponse>;
 }

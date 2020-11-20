@@ -9,7 +9,7 @@ const fwproxy = new FwProxy({ interceptHttps: true, verbose: true });
 fwproxy.addViewer(new LogViewer());
 
 // TODO
-fwproxy.addInterpolator({});
+fwproxy.addInterpolator({ name: 'test interpolator' });
 
 fwproxy.on('error', err => {
     logger.error(err);

@@ -5,6 +5,7 @@ import { HttpServer, MitmServer } from './mitm-server';
 import { HTTPRecord } from './record';
 import { Viewer } from './viewer';
 import { Interpolator } from './interpolator';
+import { ModifyHandler } from './modify-handler';
 
 interface IFwProxyOptions {
     port?: number;
@@ -36,6 +37,8 @@ export class FwProxy extends EventEmitter {
     public httpServer: HttpServer;
     public mitmServer: MitmServer;
 
+    public modifyHandler: ModifyHandler;
+
     constructor(options: IFwProxyOptions = {}) {
         super();
 
@@ -59,6 +62,8 @@ export class FwProxy extends EventEmitter {
         if (this.interceptHttps) {
             this.mitmServer = new MitmServer(this.interceptServerPort, this.requestHandler, this);
         }
+
+        this.modifyHandler = new ModifyHandler(this);
     }
 
     public addViewer(viewer: Viewer) {
@@ -69,7 +74,7 @@ export class FwProxy extends EventEmitter {
     }
 
     public addInterpolator(interpolator: Interpolator) {
-        //
+        this.modifyHandler.add(interpolator);
     }
 
     public async start() {
