@@ -5,7 +5,7 @@ import { IncomingHttpHeaders } from 'http';
 import { Readable, Writable } from 'stream';
 import { URL } from 'url';
 import { FwProxy } from '.';
-import { IRequest } from './interpolator';
+import { IRequestStream } from './interpolator';
 import { Logger } from './logger';
 
 const logger = new Logger('FwProxy HTTPRecord');
@@ -94,7 +94,7 @@ export class HTTPRecord extends EventEmitter {
     }
 
     // 记录 HTTP 请求
-    public init(reqInfo: IRequest) {
+    public init(reqInfo: IRequestStream) {
         this.url = new URL(reqInfo.url);
         this.method = reqInfo.method;
         this.httpVersion = reqInfo.httpVersion;

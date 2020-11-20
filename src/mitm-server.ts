@@ -91,12 +91,7 @@ export class HttpServer {
             // 是否解析 HTTPS 流量
             let interceptHttps = this.fwproxy.interceptHttps;
             if (!interceptHttps) {
-                try {
-                    interceptHttps = await this.fwproxy.modifyHandler.isParseSecure(req.url);
-                } catch (err) {
-                    this.logger.warn('modifyHandler.isParseSecure error: %s', err.message);
-                    this.logger.debug(err);
-                }
+                interceptHttps = await this.fwproxy.modifyHandler.isParseSecure(req.url);
             }
 
             // 2. 创建远端连接或连接至中间人服务器

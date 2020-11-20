@@ -1,13 +1,13 @@
 import { PassThrough } from 'stream';
 import { FwProxy } from '.';
-import { Interpolator, IRequest, IResponse, SimpleInterpolator } from './interpolator';
+import { Interpolator, IRequest, IRequestStream, IResponse, SimpleInterpolator } from './interpolator';
 import { Logger } from './logger';
 import { FileViewer, LogViewer } from './viewer';
 
 class TestInterpolator implements Interpolator {
     public name = 'TestInterpolator';
 
-    public async directResponse(req: IRequest): Promise<IResponse> {
+    public async directResponse(req: IRequestStream): Promise<IResponse> {
         if (req.url.includes('localhost')) {
             // 模拟读了 req 中的请求流
             req.body.resume();
@@ -26,7 +26,7 @@ class TestInterpolator implements Interpolator {
         return null;
     }
 
-    public async changeRequest(req: IRequest): Promise<IRequest> {
+    public async changeRequest(req: IRequestStream): Promise<IRequest> {
         if (req.url.includes('https://www.baidu.com/abc')) {
             req.url = 'https://www.baidu.com/';
         }

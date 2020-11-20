@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import { URL } from 'url';
 import * as http from 'http';
 import * as https from 'https';
 import * as tls from 'tls';
@@ -7,7 +6,7 @@ import { FwProxy } from '.';
 import { Logger } from './logger';
 import { errInfo, ICodeError } from './mitm-server';
 import { HTTPRecord } from './record';
-import { IRequest, IResponse } from './interpolator';
+import { IRequestStream, IResponseStream } from './interpolator';
 
 // 可通过环境变量传入需要信任的根证书，方便测试
 const trustCas: Array<string|Buffer> = tls.rootCertificates.slice();
@@ -63,7 +62,7 @@ export class RequestHandler {
         const record = new HTTPRecord(this.fwproxy);
 
         // end: 响应客户端
-        const responseToClient = (resInfo: IResponse) => {
+        const responseToClient = (resInfo: IResponseStream) => {
             res.writeHead(resInfo.statusCode, resInfo.headers);
             resInfo.body.pipe(res);
 
@@ -82,27 +81,20 @@ export class RequestHandler {
         }
 
         // 定义请求信息
-        let reqInfo: IRequest = {
+        let reqInfo: IRequestStream = {
             method: req.method,
             url: remoteUrl,
             httpVersion: req.httpVersion,
             headers: req.headers,
             body: req,
         };
-        let resInfo: IResponse;
+        let resInfo: IResponseStream;
 
         // hook 1: 可能直接响应，不请求远端
-        try {
-            const directResp = await this.fwproxy.modifyHandler.directResponse(reqInfo);
-            if (directResp) {
-                if (directResp.reqInfo) reqInfo = directResp.reqInfo;
-                if (directResp.resInfo) resInfo = directResp.resInfo;
-            }
-        } catch (err) {
-            this.logger.warn('modifyHandler.directResponse error: %s', err.message);
-            this.logger.debug(err);
-            tryDestroy();
-            return;
+        const directResp = await this.fwproxy.modifyHandler.directResponse(reqInfo);
+        if (directResp) {
+            if (directResp.reqInfo) reqInfo = directResp.reqInfo;
+            if (directResp.resInfo) resInfo = directResp.resInfo;
         }
 
         if (resInfo) {
@@ -114,15 +106,8 @@ export class RequestHandler {
         }
 
         // hook 2: 修改请求
-        try {
-            const changedReqInfo = await this.fwproxy.modifyHandler.changeRequest(reqInfo);
-            if (changedReqInfo) reqInfo = changedReqInfo;
-        } catch (err) {
-            this.logger.warn('modifyHandler.changeRequest error: %s', err.message);
-            this.logger.debug(err);
-            tryDestroy();
-            return;
-        }
+        const changedReqInfo = await this.fwproxy.modifyHandler.changeRequest(reqInfo);
+        if (changedReqInfo) reqInfo = changedReqInfo;
 
         // 1. 记录请求
         record.init(reqInfo);
@@ -148,15 +133,8 @@ export class RequestHandler {
             };
 
             // hook 3: 修改响应
-            try {
-                const changedResInfo = await this.fwproxy.modifyHandler.changeResponse(reqInfo, resInfo);
-                if (changedResInfo) resInfo = changedResInfo;
-            } catch (err) {
-                this.logger.warn('modifyHandler.changeResponse error: %s', err.message);
-                this.logger.debug(err);
-                tryDestroy();
-                return;
-            }
+            const changedResInfo = await this.fwproxy.modifyHandler.changeResponse(reqInfo, resInfo);
+            if (changedResInfo) resInfo = changedResInfo;
 
             responseToClient(resInfo);
         };
