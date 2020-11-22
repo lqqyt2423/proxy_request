@@ -53,7 +53,7 @@ export class HttpServer {
     }
 
     public async start() {
-        await new Promise(resolve => {
+        await new Promise<void>(resolve => {
             this.server.listen(this.port, () => {
                 this.logger.info('server listen at: %s', this.port);
                 resolve();
