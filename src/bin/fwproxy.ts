@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
-import * as fs from 'fs';
 import { program } from 'commander';
 import { Logger } from '../logger';
 import { FwProxy } from '../';
 import { ca } from '../ca';
-import { FileViewer, LogViewer } from '../viewer';
+import { LogViewer } from '../viewer';
 import { SimpleInterpolator } from '../interpolator';
 
 const pkg = require('../../package.json');
@@ -46,8 +45,6 @@ else {
     });
 
     fwproxy.addViewer(new LogViewer());
-    // fwproxy.addViewer(new FileViewer(process.stdout));
-
     fwproxy.addInterpolator(new SimpleInterpolator());
 
     fwproxy.start();

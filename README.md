@@ -38,12 +38,13 @@ curl https://www.baidu.com/
 - [x] request handler 优化
 - [x] 解决报错和性能的问题
 - [x] 优化 Logger
-- [ ] 测试
-- [ ] Interpolator
+- [x] 进程内通信，非 TCP 或 IPC
+- [x] 测试
+- [x] 暴露 api
+- [ ] 解析头部 content-encoding
+- [ ] content-length, Transfer-Encoding: chunked 等常见错误预防
 - [ ] Agent
 - [ ] README
-- [ ] ipc(unix domain) 或 更加性能高的方案
-- [ ] 暴露 api
 - [ ] 兼容 anyproxy api
 - [ ] HTTP2
 - [ ] 生成证书格式跟 mitmproxy 一样
@@ -59,10 +60,6 @@ anyproxy 代理 https 请求时，会为每个不同的域名创建一个单独�
 
 此 fwproxy 呢？
 
-现在这一版本，仅会在一开始创建一个 https server 用于中间人攻击，通过`服务器名称指示（server name indication, SNI）`技术。资源占用少。当新的域名请求过来时，并不需要新启动 https server，性能肯定会有所提升。
+仅会在一开始创建一个 https server 用于中间人攻击，通过`服务器名称指示（server name indication, SNI）`技术。资源占用少。当新的域名请求过来时，并不需要新启动 https server，性能肯定会有所提升。
 
-下一步的优化点？
-
-其实这个用于中间人攻击的服务并不用真正的监听某一个端口。因为代理的转发和中间人攻击所处与同一进程，所以当代理请求来临时，请求流数据直接在进程内处理解析拦截等，无需通过 socket 或 ipc 等跨进程方式沟通，那性能肯定会有所提升。
-
-如何实现呢？实现一个 mock 的 https server，当请求至中间人攻击环节时，mock 一个 socket 进行下一步的操作。
+且此服务器并不会通过跨进程的 tcp 或 ipc 等方式沟通，而是在进程内部模拟发出请求，所有数据都是在同一进程内，所以性能肯定是有所提升的。

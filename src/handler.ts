@@ -118,9 +118,6 @@ export class RequestHandler {
             method: req.method,
             path: record.url.pathname + record.url.search,
             headers: req.headers,
-
-            // 不设置超时
-            // timeout: this.fwproxy.connTimeout,
         };
 
         // 2. 远端响应 => 代理服务器响应
