@@ -16,7 +16,7 @@ export class TaskRunner {
 
     private count: number;
     private finish: number;
-    private onFinish: () => void;
+    private onFinish: (...args: any[]) => void;
 
     constructor(parallel: number) {
         this.parallel = parallel;
